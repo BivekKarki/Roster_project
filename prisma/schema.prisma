@@ -1,0 +1,102 @@
+// ShiftBook database schema
+// Money is stored as Decimal(10,2). Dates are stored as DATE (no time zone).
+// Times of day are stored as "HH:MM" strings (24-hour).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ShiftStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum PayFrequency {
+  WEEKLY
+  FORTNIGHTLY
+  MONTHLY
+  IRREGULAR
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  settings     Settings?
+  sites        Site[]
+  shifts       Shift[]
+}
+
+model Settings {
+  userId             String   @id
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payDelayDays       Int      @default(14)
+  dueSoonDays        Int      @default(3)
+  fortnightStart     DateTime @db.Date
+  overtimeEnabled    Boolean  @default(false)
+  overtimeThreshold  Decimal  @default(8) @db.Decimal(5, 2)
+  overtimeMultiplier Decimal  @default(1.5) @db.Decimal(4, 2)
+  updatedAt          DateTime @updatedAt
+}
+
+/// An employer + location combination with defaults for NEW shifts only.
+model Site {
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employer     String
+  location     String
+  defaultStart String?
+  defaultEnd   String?
+  defaultRate  Decimal?     @db.Decimal(10, 2)
+  payFrequency PayFrequency @default(FORTNIGHTLY)
+  payDelayDays Int          @default(14)
+  notes        String       @default("")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  shifts       Shift[]
+
+  @@unique([userId, employer, location])
+}
+
+/// A shift keeps its own copy (snapshot) of employer, location, times, rate and
+/// overtime rule. Changing a Site's defaults never changes existing shifts.
+model Shift {
+  id              String      @id @default(cuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  siteId          String?
+  site            Site?       @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  employer        String
+  location        String
+  date            DateTime    @db.Date
+  startTime       String
+  endTime         String
+  breakMins       Int         @default(0)
+  rate            Decimal?    @db.Decimal(10, 2)
+  otThreshold     Decimal?    @db.Decimal(5, 2)
+  otMultiplier    Decimal?    @db.Decimal(4, 2)
+  status          ShiftStatus @default(SCHEDULED)
+  notes           String      @default("")
+  expectedPayDate DateTime?   @db.Date
+  paid            Boolean     @default(false)
+  actualPayDate   DateTime?   @db.Date
+  actualAmount    Decimal?    @db.Decimal(10, 2)
+  payNotes        String      @default("")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([userId, date])
+  @@index([userId, status, paid])
+  @@index([userId, employer])
+}

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1e3a5f" />
+  <title>Offline | ShiftBook</title>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, Roboto, sans-serif; background: #f1f5f9; color: #0f172a;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; max-width: 360px; text-align: center; }
+    h1 { font-size: 1.25rem; margin: 0 0 8px; }
+    p { color: #475569; line-height: 1.5; margin: 0 0 16px; }
+    button { background: #1e3a5f; color: #fff; border: 0; border-radius: 12px; padding: 14px 20px; font-size: 1rem; font-weight: 600; width: 100%; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>You're offline</h1>
+    <p>ShiftBook needs a connection to load and save shifts. Check your signal, then try again.</p>
+    <button onclick="location.reload()">Try again</button>
+  </div>
+</body>
+</html>
