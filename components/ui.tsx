@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { STATUS_LABEL, type Status } from "@/lib/types";
+import { ProfileMenu } from "./ProfileMenu";
 
 export const btn = {
   primary: "inline-flex items-center justify-center gap-2 rounded-xl bg-ink px-4 py-3 text-base font-semibold text-white active:bg-ink-dark disabled:opacity-50",
@@ -17,7 +18,10 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
           <h1 className="truncate text-lg font-bold">{title}</h1>
           {subtitle && <p className="truncate text-xs text-white/80">{subtitle}</p>}
         </div>
-        {action}
+        <div className="flex shrink-0 items-center gap-2">
+          {action}
+          <ProfileMenu />
+        </div>
       </div>
     </header>
   );

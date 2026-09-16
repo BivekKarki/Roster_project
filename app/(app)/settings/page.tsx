@@ -20,6 +20,13 @@ export default async function SettingsPage() {
     <>
       <PageHeader title="Settings" subtitle={session?.user?.email ?? undefined} />
       <Page>
+        <Link href="/profile" className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 active:bg-slate-50">
+          <span>
+            <span className="block font-bold">Profile and auto logout</span>
+            <span className="block text-sm text-slate-600">Photo, name and how long before you&apos;re logged out</span>
+          </span>
+          <span aria-hidden className="text-xl text-slate-400">›</span>
+        </Link>
         <Card>
           <h2 className="mb-2 font-bold">Employers and locations</h2>
           <div className="space-y-2">

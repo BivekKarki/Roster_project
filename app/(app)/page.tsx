@@ -48,6 +48,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     <>
       <PageHeader title={user?.name ? `Hi ${user.name}` : "Dashboard"} subtitle={`${dayName(today)} ${fmtDate(today)}`} />
       <Page>
+        {one(sp.verified) && (
+          <Card className="border-green-300 bg-green-50">
+            <h2 className="font-bold">Email confirmed 🎉</h2>
+            <p className="text-sm text-slate-700">Welcome to ShiftBook. Your account is ready.</p>
+          </Card>
+        )}
         {siteCount === 0 && (
           <Card className="border-blue-200 bg-blue-50">
             <h2 className="font-bold">Add your first employer</h2>

@@ -39,6 +39,7 @@ async function main() {
       email,
       name: "Demo",
       passwordHash: await bcrypt.hash(password, 12),
+      emailVerifiedAt: new Date(),
       settings: { create: { fortnightStart: day("2026-09-07") } },
     },
   });

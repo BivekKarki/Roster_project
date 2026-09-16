@@ -42,7 +42,7 @@ export function SignupForm({ allowed }: { allowed: boolean }) {
       <Field label="Name (optional)" htmlFor="name">
         <input id="name" name="name" autoComplete="given-name" className="input" />
       </Field>
-      <Field label="Email" htmlFor="email">
+      <Field label="Email" htmlFor="email" hint="We'll send a code to confirm it's yours">
         <input id="email" name="email" type="email" autoComplete="email" inputMode="email" required className="input" />
       </Field>
       <Field label="Password" htmlFor="password" hint="At least 8 characters">

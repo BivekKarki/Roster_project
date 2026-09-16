@@ -30,11 +30,41 @@ model User {
   email        String    @unique
   name         String?
   passwordHash String
+  /// Null until the user confirms their email with the code or link
+  emailVerifiedAt DateTime?
+  /// Profile photo, resized in the browser to 256×256 before upload (usually 10–40 KB)
+  avatar          Bytes?
+  avatarType      String?
+  avatarUpdatedAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   settings     Settings?
   sites        Site[]
   shifts       Shift[]
+  verifications EmailVerification[]
+}
+
+enum VerificationPurpose {
+  EMAIL_VERIFY
+  LOGIN_TICKET
+}
+
+/// One-time email codes/links and short-lived login tickets. Only hashes are stored.
+model EmailVerification {
+  id        String              @id @default(cuid())
+  userId    String
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   VerificationPurpose
+  /// Hash of the 6-digit code (EMAIL_VERIFY only)
+  codeHash  String?
+  /// Hash of the link token or login ticket
+  tokenHash String              @unique
+  attempts  Int                 @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  @@index([userId, purpose, createdAt])
 }
 
 model Settings {
@@ -46,6 +76,8 @@ model Settings {
   overtimeEnabled    Boolean  @default(false)
   overtimeThreshold  Decimal  @default(8) @db.Decimal(5, 2)
   overtimeMultiplier Decimal  @default(1.5) @db.Decimal(4, 2)
+  /// Log out automatically after this many minutes without activity. 0 = never.
+  idleTimeoutMinutes Int      @default(30)
   updatedAt          DateTime @updatedAt
 }
 

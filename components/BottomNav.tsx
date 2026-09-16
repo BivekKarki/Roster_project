@@ -14,7 +14,7 @@ const TABS = [
 export function BottomNav({ overdueCount }: { overdueCount: number }) {
   const pathname = usePathname();
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
-  const onForm = pathname.startsWith("/shifts/") || pathname.startsWith("/settings/sites");
+  const onForm = pathname.startsWith("/shifts/") || pathname.startsWith("/settings/sites") || pathname.startsWith("/profile");
 
   return (
     <>

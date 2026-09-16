@@ -42,6 +42,11 @@ Optional demo account instead of signing up: `npm run db:seed` (login `demo@shif
 | `AUTH_SECRET` | Random secret that signs login sessions |
 | `APP_TIMEZONE` | Used for "today", overdue payments and weeks. Default `Australia/Sydney` |
 | `ALLOW_SIGNUP` | Set to `false` after creating your account so nobody else can register |
+| `RESEND_API_KEY` | Sends verification emails through [Resend](https://resend.com). Without it in development, emails print in the terminal |
+| `EMAIL_FROM` | Sender, e.g. `ShiftBook <noreply@yourdomain.com>` |
+| `APP_URL` | Public address used in email links, e.g. `https://shiftbook.vercel.app` |
+| `REQUIRE_EMAIL_VERIFICATION` | `true` by default. `false` skips email confirmation |
+| `SESSION_MAX_DAYS` | Every login ends after this many days, even if active. Default `30` |
 
 ## 4. Deploy to Vercel
 
@@ -125,6 +130,27 @@ lib/
 prisma/schema.prisma            Database schema
 public/sw.js, offline.html      Offline support
 ```
+
+### Email verification
+- **Sign-up flow:** new accounts must confirm their email before they can log in. One email contains a **6-digit code** and a **"Confirm my email" link**; either works, and both sign you straight in.
+- **Expiry and limits:** the code and link expire after 30 minutes. A new email replaces the old code and link. 5 wrong codes lock that code. Resending waits 60 seconds between emails, with at most 5 per hour.
+- **Unconfirmed accounts:** logging in with the right password sends a new code and opens the confirm screen.
+- **Storage:** codes, links and one-time login tickets are stored only as HMAC-SHA256 hashes.
+- **Resend setup:**
+  1. Create an API key at resend.com and set `RESEND_API_KEY`.
+  2. To start, leave `EMAIL_FROM` as `onboarding@resend.dev`. Resend then only delivers to the email you registered with, which is fine for a personal app.
+  3. To email anyone, verify a domain in Resend and change `EMAIL_FROM`.
+- **Locally:** without a key, `npm run dev` prints the email, code and link in the terminal.
+- **Accounts created before this update** are asked to confirm their email the next time they log in.
+
+### Sessions and auto logout
+- **Auto logout:** each user picks 15 min, 30 min (default), 1 h, 4 h, 1 day or Never in **Profile**. After that long with no activity, a 60-second warning appears and then the app logs out. It checks immediately when the phone wakes up, and all open tabs share the same timer.
+- **Enforced on the server too:** the session cookie stores the login time and last activity, and every request checks them (`auth.config.ts`, `lib/session-rules.ts`). A stale cookie from a closed tab or a sleeping phone doesn't work.
+- **Maximum length:** every login ends after `SESSION_MAX_DAYS`, even for active users.
+
+### Profile icon
+- **Top right of every page:** your photo, or the first letter of your name (or email) on a coloured circle. Tap it for Profile, Settings and Log out.
+- **Photos:** resized in the browser to a 256×256 JPEG (usually under 40 KB), checked on the server, stored in the database and served privately from `/api/avatar`.
 
 ### Security
 - **Passwords** are hashed with bcrypt, and sessions are signed JWTs (Auth.js).

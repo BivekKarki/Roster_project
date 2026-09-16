@@ -80,6 +80,23 @@ export const settingsSchema = z.object({
   overtimeMultiplier: z.coerce.number().min(1).max(5),
 });
 
+export const verifyCodeSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+  code: z.string().trim().min(1, "Enter the 6-digit code").max(20),
+});
+
+export const resendSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+});
+
+export const profileSchema = z.object({
+  name: text(80),
+});
+
+export const autoLogoutSchema = z.object({
+  idleTimeoutMinutes: z.coerce.number().int().refine((n) => [15, 30, 60, 240, 1440, 0].includes(n), "Choose an option"),
+});
+
 export const payBatchSchema = z.object({
   ids: z.array(z.string().min(1)).min(1, "Select at least one shift").max(500),
   payDate: isoSchema,
