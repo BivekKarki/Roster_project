@@ -1,6 +1,6 @@
 import "server-only";
-import { enrichShift } from "./calc";
-import { isoToDb, mondayOf, todayIso } from "./dates";
+import { DEFAULT_FORTNIGHT_START, enrichShift } from "./calc";
+import { isoToDb, todayIso } from "./dates";
 import { prisma } from "./db";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { toSettingsDTO, toShiftDTO, toSiteDTO } from "./mappers";
@@ -12,7 +12,7 @@ export async function getSettings(userId: string): Promise<SettingsDTO> {
   const row = await prisma.settings.upsert({
     where: { userId },
     update: {},
-    create: { userId, fortnightStart: isoToDb(mondayOf(todayIso())) },
+    create: { userId, fortnightStart: isoToDb(DEFAULT_FORTNIGHT_START) },
   });
   return toSettingsDTO(row);
 }

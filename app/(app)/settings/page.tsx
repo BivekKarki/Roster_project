@@ -6,9 +6,9 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { btn, Card, Page, PageHeader } from "@/components/ui";
 import { auth } from "@/auth";
 import { getSettings, getSites } from "@/lib/data";
-import { fmtTime, money } from "@/lib/format";
+import { fmtDate, fmtTime, money } from "@/lib/format";
 import { requireUserId } from "@/lib/session";
-import { FREQUENCY_LABEL } from "@/lib/types";
+import { FREQUENCY_LABEL, WEEKDAYS } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -32,7 +32,11 @@ export default async function SettingsPage() {
                   {", "}
                   {s.defaultRate === null ? <span className="font-semibold text-orange-700">rate not set</span> : `${money(s.defaultRate)}/h`}
                 </div>
-                <div className="text-xs text-slate-500">{FREQUENCY_LABEL[s.payFrequency]}, paid about {s.payDelayDays} days after each shift</div>
+                <div className="text-xs text-slate-500">
+                  {s.payPeriodStart && s.payWeekday !== null
+                    ? `${s.payPeriodDays === 7 ? "Weekly" : "Fortnightly"} from ${fmtDate(s.payPeriodStart)}, paid ${WEEKDAYS[s.payWeekday]} after${s.payLateDays ? `, usually ${s.payLateDays} days late` : ""}`
+                    : `${FREQUENCY_LABEL[s.payFrequency]}, paid about ${s.payDelayDays} days after each shift`}
+                </div>
               </Link>
             ))}
           </div>

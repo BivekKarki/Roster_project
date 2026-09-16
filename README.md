@@ -77,6 +77,7 @@ Statuses, rates, overtime rules and payment records all carry across.
 ## How it works
 
 ### Data safety rules
+- **Pay dates:** saved on each shift. Editing an employer's pay rule never moves dates on paid shifts.
 - **Snapshots:** each shift stores its own employer name, location, times, rate and overtime rule. Changing an employer's defaults only affects **new** shifts.
 - **Filling missing rates:** saving a default rate offers to fill it into shifts that have **no** rate. It never overwrites a rate that's already set.
 - **Renaming:** renaming an employer or location offers to update the names on old shifts. Times, rates and payments stay the same.
@@ -87,8 +88,13 @@ Statuses, rates, overtime rules and payment records all carry across.
 ### Calculations (`lib/calc.ts`)
 - **Hours** = end − start − unpaid break. Overnight shifts are handled.
 - **Expected pay** = hours × rate. If the shift has an overtime rule, hours past the threshold are paid at rate × multiplier.
-- **Expected payment date** = shift date + the employer's "paid after" days (default 14). You can edit it per shift.
-- **Payment status:**
+- **Pay dates** come from each employer's **pay cycle** (Settings → employer → How this employer pays):
+  - *Pay period*: fixed weekly or fortnightly blocks counted from a start date (e.g. Mon 07/09/2026, so 07/09–20/09, 21/09–04/10 …)
+  - *Official pay date*: the first chosen weekday **after** the period ends (e.g. Tuesday → Tue 22/09/2026)
+  - *Expected pay date*: official date + "usually late by" days (e.g. 7 → Tue 29/09/2026). Editable per shift.
+  - Employers without a pay cycle use *shift date + "paid after" days* instead.
+  - Each shift saves its pay period and both dates. Changing a pay rule offers to recalculate **unpaid** shifts only.
+- **Payment status** (always based on the *expected* date):
   - 🔴 overdue after the expected date
   - 🟡 due within the "due soon" window (default 3 days)
   - ⚪ not due yet
@@ -132,6 +138,7 @@ public/sw.js, offline.html      Offline support
 | `npm run dev` | Start the development server |
 | `npm run build` / `npm start` | Production build and serve |
 | `npm run typecheck` | TypeScript check |
+| `npm test` | Unit tests for pay dates, hours and pay |
 | `npm run db:migrate` | Create and apply a migration (development) |
 | `npm run db:deploy` | Apply migrations (production) |
 | `npm run db:seed` | Create the demo account |

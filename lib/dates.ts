@@ -24,6 +24,8 @@ export const diffDays = (a: string, b: string) => Math.round((toUtc(a) - toUtc(b
 
 export const dayName = (s: string) => (isIsoDate(s) ? DAY_NAMES[new Date(toUtc(s)).getUTCDay()] : "");
 
+export const weekdayOf = (s: string) => new Date(toUtc(s)).getUTCDay();
+
 export const mondayOf = (s: string) => addDays(s, -((new Date(toUtc(s)).getUTCDay() + 6) % 7));
 
 /** Today's date in the app's time zone (defaults to Australia/Sydney). */

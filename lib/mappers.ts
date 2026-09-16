@@ -19,6 +19,9 @@ export const toShiftDTO = (s: Shift): ShiftDTO => ({
   otMultiplier: dec(s.otMultiplier),
   status: s.status,
   notes: s.notes,
+  payPeriodStart: s.payPeriodStart ? dbToIso(s.payPeriodStart) : null,
+  payPeriodEnd: s.payPeriodEnd ? dbToIso(s.payPeriodEnd) : null,
+  officialPayDate: s.officialPayDate ? dbToIso(s.officialPayDate) : null,
   expectedPayDate: s.expectedPayDate ? dbToIso(s.expectedPayDate) : null,
   paid: s.paid,
   actualPayDate: s.actualPayDate ? dbToIso(s.actualPayDate) : null,
@@ -35,6 +38,10 @@ export const toSiteDTO = (s: Site): SiteDTO => ({
   defaultRate: dec(s.defaultRate),
   payFrequency: s.payFrequency,
   payDelayDays: s.payDelayDays,
+  payPeriodStart: s.payPeriodStart ? dbToIso(s.payPeriodStart) : null,
+  payPeriodDays: s.payPeriodDays,
+  payWeekday: s.payWeekday,
+  payLateDays: s.payLateDays,
   notes: s.notes,
 });
 

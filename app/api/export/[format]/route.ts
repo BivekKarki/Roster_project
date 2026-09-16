@@ -4,10 +4,10 @@ import { auth } from "@/auth";
 import { summarizeByEmployer } from "@/lib/calc";
 import { findShifts, getSettings, getSites } from "@/lib/data";
 import { todayIso } from "@/lib/dates";
-import { fmtTime } from "@/lib/format";
+import { fmtDate, fmtTime } from "@/lib/format";
 import { shiftExportRows, toCsv } from "@/lib/export";
 import { filtersToWhere, readFilters } from "@/lib/filters";
-import { FREQUENCY_LABEL } from "@/lib/types";
+import { FREQUENCY_LABEL, WEEKDAYS } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +53,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       Employer: s.employer, Location: s.location,
       "Default start": s.defaultStart ? fmtTime(s.defaultStart) : "", "Default end": s.defaultEnd ? fmtTime(s.defaultEnd) : "",
       "Default rate (AUD)": s.defaultRate ?? "", "Payment frequency": FREQUENCY_LABEL[s.payFrequency],
-      "Paid after (days)": s.payDelayDays, Notes: s.notes,
+      "Pay period start": s.payPeriodStart ? fmtDate(s.payPeriodStart) : "",
+      "Pay period (days)": s.payPeriodDays,
+      "Pay day": s.payWeekday === null ? "" : WEEKDAYS[s.payWeekday],
+      "Usually late by (days)": s.payLateDays,
+      "Paid after (days, if no pay cycle)": s.payDelayDays, Notes: s.notes,
     })));
     const buffer = await wb.xlsx.writeBuffer();
     return new NextResponse(new Uint8Array(buffer as ArrayBuffer), {
@@ -76,7 +80,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       shifts: all.map((s) => ({
         employer: s.employer, location: s.location, date: s.date, startTime: s.startTime, endTime: s.endTime,
         breakMins: s.breakMins, rate: s.rate, otThreshold: s.otThreshold, otMultiplier: s.otMultiplier,
-        status: s.status, notes: s.notes, expectedPayDate: s.expectedPayDate, paid: s.paid,
+        status: s.status, notes: s.notes, payPeriodStart: s.payPeriodStart, payPeriodEnd: s.payPeriodEnd,
+        officialPayDate: s.officialPayDate, expectedPayDate: s.expectedPayDate, paid: s.paid,
         actualPayDate: s.actualPayDate, actualAmount: s.actualAmount, payNotes: s.payNotes,
       })),
     };

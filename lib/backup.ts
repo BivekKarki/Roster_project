@@ -21,6 +21,11 @@ const int = (v: unknown, fallback: number, max: number) => {
   const n = Number(v);
   return Number.isInteger(n) && n >= 0 && n <= max ? n : fallback;
 };
+const weekday = (v: unknown) => {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 0 && n <= 6 ? n : null;
+};
 const status = (v: unknown): Status => {
   const up = str(v).toUpperCase() as Status;
   return STATUSES.includes(up) ? up : "SCHEDULED";
@@ -33,10 +38,12 @@ const frequency = (v: unknown): Frequency => {
 export type ImportSite = {
   employer: string; location: string; defaultStart: string | null; defaultEnd: string | null;
   defaultRate: number | null; payFrequency: Frequency; payDelayDays: number; notes: string;
+  payPeriodStart: string | null; payPeriodDays: number; payWeekday: number | null; payLateDays: number;
 };
 export type ImportShift = {
   employer: string; location: string; date: string; startTime: string; endTime: string; breakMins: number;
   rate: number | null; otThreshold: number | null; otMultiplier: number | null; status: Status; notes: string;
+  payPeriodStart: string | null; payPeriodEnd: string | null; officialPayDate: string | null;
   expectedPayDate: string | null; paid: boolean; actualPayDate: string | null; actualAmount: number | null; payNotes: string;
 };
 export type ImportSettings = {
@@ -68,6 +75,10 @@ export function parseBackup(raw: string) {
       defaultStart: time(item.defaultStart), defaultEnd: time(item.defaultEnd),
       defaultRate: money(item.defaultRate), payFrequency: frequency(item.payFrequency),
       payDelayDays: int(item.payDelayDays, 14, 120), notes: str(item.notes),
+      payPeriodStart: date(item.payPeriodStart),
+      payPeriodDays: Number(item.payPeriodDays) === 7 ? 7 : 14,
+      payWeekday: weekday(item.payWeekday),
+      payLateDays: int(item.payLateDays, 0, 60),
     });
   }
 
@@ -90,6 +101,9 @@ export function parseBackup(raw: string) {
       otMultiplier: money(item.otMultiplier ?? ot?.multiplier),
       status: status(item.status),
       notes: str(item.notes),
+      payPeriodStart: date(item.payPeriodStart),
+      payPeriodEnd: date(item.payPeriodEnd),
+      officialPayDate: date(item.officialPayDate),
       expectedPayDate: date(item.expectedPayDate),
       paid,
       actualPayDate: paid ? date(item.actualPayDate) : null,

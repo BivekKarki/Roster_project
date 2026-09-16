@@ -2,9 +2,9 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { saveShift } from "@/app/actions/shifts";
-import { calcHours, calcPay } from "@/lib/calc";
-import { addDays, dayName, isIsoDate } from "@/lib/dates";
-import { fmtDate, fmtHours, fmtTime, money, round2, signedMoney } from "@/lib/format";
+import { calcHours, calcPay, hasPayCycle, payDatesFor } from "@/lib/calc";
+import { dayName, diffDays, isIsoDate } from "@/lib/dates";
+import { fmtDate, fmtDayDate, fmtHours, fmtTime, lateness, money, round2, signedMoney } from "@/lib/format";
 import { STATUS_LABEL, STATUSES, type SettingsDTO, type ShiftDTO, type SiteDTO, type Status } from "@/lib/types";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
@@ -16,8 +16,9 @@ type FormState = {
   id: string; siteId: string; employer: string; location: string; date: string;
   startTime: string; endTime: string; breakMins: number; rate: string;
   otEnabled: boolean; otThreshold: string; otMultiplier: string;
-  status: Status; notes: string; expectedPayDate: string; paid: boolean;
-  actualPayDate: string; actualAmount: string; payNotes: string;
+  status: Status; notes: string;
+  payPeriodStart: string; payPeriodEnd: string; officialPayDate: string; expectedPayDate: string;
+  paid: boolean; actualPayDate: string; actualAmount: string; payNotes: string;
 };
 
 const numStr = (n: number | null) => (n === null ? "" : String(n));
@@ -38,11 +39,23 @@ export function ShiftForm({ sites, settings, initial, template, date, today, ret
   const [state, formAction] = useActionState(saveShift, undefined);
   const isNew = !initial;
 
+  /** All four pay dates for a date + employer, as form strings */
+  const datesFor = (d: string, site: SiteDTO | undefined) => {
+    const pay = payDatesFor(d, site, settings.payDelayDays);
+    return {
+      payPeriodStart: pay.periodStart ?? "",
+      payPeriodEnd: pay.periodEnd ?? "",
+      officialPayDate: pay.officialPayDate ?? "",
+      expectedPayDate: pay.expectedPayDate,
+    };
+  };
+
   const [f, setF] = useState<FormState>(() => {
     const src = initial ?? template;
     if (src) {
-      const copy = !initial; // duplicating: fresh status and no payment
+      const copy = !initial; // duplicating: fresh status, fresh pay dates, no payment
       const d = copy ? date : src.date;
+      const site = sites.find((s) => s.id === src.siteId);
       return {
         id: initial?.id ?? "", siteId: src.siteId ?? "", employer: src.employer, location: src.location, date: d,
         startTime: src.startTime, endTime: src.endTime, breakMins: src.breakMins, rate: numStr(src.rate),
@@ -50,9 +63,14 @@ export function ShiftForm({ sites, settings, initial, template, date, today, ret
         otMultiplier: numStr(src.otMultiplier ?? settings.overtimeMultiplier),
         status: copy ? (d < today ? "COMPLETED" : "SCHEDULED") : src.status,
         notes: src.notes,
-        expectedPayDate: copy
-          ? addDays(d, sites.find((s) => s.id === src.siteId)?.payDelayDays ?? settings.payDelayDays)
-          : src.expectedPayDate ?? "",
+        ...(copy
+          ? datesFor(d, site)
+          : {
+              payPeriodStart: src.payPeriodStart ?? "",
+              payPeriodEnd: src.payPeriodEnd ?? "",
+              officialPayDate: src.officialPayDate ?? "",
+              expectedPayDate: src.expectedPayDate ?? "",
+            }),
         paid: copy ? false : src.paid,
         actualPayDate: copy ? "" : src.actualPayDate ?? "",
         actualAmount: copy ? "" : numStr(src.actualAmount),
@@ -63,23 +81,23 @@ export function ShiftForm({ sites, settings, initial, template, date, today, ret
       id: "", siteId: "", employer: "", location: "", date, startTime: "", endTime: "", breakMins: 0, rate: "",
       otEnabled: settings.overtimeEnabled, otThreshold: String(settings.overtimeThreshold), otMultiplier: String(settings.overtimeMultiplier),
       status: date < today ? "COMPLETED" : "SCHEDULED", notes: "",
-      expectedPayDate: addDays(date, settings.payDelayDays), paid: false, actualPayDate: "", actualAmount: "", payNotes: "",
+      ...datesFor(date, undefined),
+      paid: false, actualPayDate: "", actualAmount: "", payNotes: "",
     };
   });
   const [repeat, setRepeat] = useState(0);
   const set = (patch: Partial<FormState>) => setF((p) => ({ ...p, ...patch }));
 
   const siteFor = (employer: string, location: string) => sites.find((s) => s.employer === employer && s.location === location);
-  const delayFor = (site?: SiteDTO) => site?.payDelayDays ?? settings.payDelayDays;
 
-  // Selecting an employer + location fills in its defaults. Everything stays editable.
+  // Selecting an employer + location fills in its defaults and pay dates. Everything stays editable.
   const applySite = (site: SiteDTO) =>
     setF((p) => ({
       ...p,
       siteId: site.id, employer: site.employer, location: site.location,
       startTime: site.defaultStart ?? p.startTime, endTime: site.defaultEnd ?? p.endTime,
       rate: numStr(site.defaultRate),
-      expectedPayDate: isIsoDate(p.date) ? addDays(p.date, delayFor(site)) : p.expectedPayDate,
+      ...(isIsoDate(p.date) ? datesFor(p.date, site) : {}),
     }));
 
   const onEmployer = (employer: string) => {
@@ -94,18 +112,21 @@ export function ShiftForm({ sites, settings, initial, template, date, today, ret
   };
   const onDate = (value: string) => {
     if (!isIsoDate(value)) return set({ date: value });
-    setF((p) => ({ ...p, date: value, expectedPayDate: addDays(value, delayFor(siteFor(p.employer, p.location))) }));
+    setF((p) => ({ ...p, date: value, ...datesFor(value, siteFor(p.employer, p.location)) }));
   };
 
   const employers = useMemo(() => [...new Set([...sites.map((s) => s.employer), f.employer].filter(Boolean))].sort(), [sites, f.employer]);
   const locations = [...new Set([...sites.filter((s) => s.employer === f.employer).map((s) => s.location), f.location].filter(Boolean))].sort();
   const quickPicks = isNew ? [...sites].sort((a, b) => (usage[b.id] ?? 0) - (usage[a.id] ?? 0)).slice(0, 6) : [];
+  const currentSite = siteFor(f.employer, f.location);
 
   const hours = calcHours(f.startTime, f.endTime, f.breakMins);
   const pay = calcPay(hours, toNum(f.rate), f.otEnabled ? toNum(f.otThreshold) : null, f.otEnabled ? toNum(f.otMultiplier) : null);
   const actual = toNum(f.actualAmount);
   const diff = f.paid && actual !== null && pay !== null ? round2(actual - pay) : null;
   const completed = f.status === "COMPLETED";
+  const expectedVsOfficial = isIsoDate(f.officialPayDate) && isIsoDate(f.expectedPayDate) ? diffDays(f.expectedPayDate, f.officialPayDate) : null;
+  const paidVsOfficial = f.paid && isIsoDate(f.officialPayDate) && isIsoDate(f.actualPayDate) ? diffDays(f.actualPayDate, f.officialPayDate) : null;
 
   return (
     <form action={formAction}>
@@ -116,6 +137,9 @@ export function ShiftForm({ sites, settings, initial, template, date, today, ret
       <input type="hidden" name="otEnabled" value={f.otEnabled ? "true" : ""} />
       <input type="hidden" name="returnTo" value={returnTo} />
       <input type="hidden" name="repeatWeeks" value={repeat} />
+      <input type="hidden" name="payPeriodStart" value={f.payPeriodStart} />
+      <input type="hidden" name="payPeriodEnd" value={f.payPeriodEnd} />
+      <input type="hidden" name="officialPayDate" value={f.officialPayDate} />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4">
         {quickPicks.length > 0 && (
@@ -206,7 +230,7 @@ export function ShiftForm({ sites, settings, initial, template, date, today, ret
         </Field>
 
         {isNew && (
-          <Field label="Repeat every week" htmlFor="repeat" hint={repeat ? `Also adds this shift on the same weekday for the next ${repeat} week${repeat > 1 ? "s" : ""}.` : undefined}>
+          <Field label="Repeat every week" htmlFor="repeat" hint={repeat ? `Also adds this shift on the same weekday for the next ${repeat} week${repeat > 1 ? "s" : ""}. Each one gets its own pay dates.` : undefined}>
             <select id="repeat" value={repeat} onChange={(e) => setRepeat(Number(e.target.value))} className="input">
               {REPEATS.map((n) => <option key={n} value={n}>{n === 0 ? "Don't repeat" : `Next ${n} week${n > 1 ? "s" : ""}`}</option>)}
             </select>
@@ -218,12 +242,39 @@ export function ShiftForm({ sites, settings, initial, template, date, today, ret
         </Field>
       </section>
 
-      {/* Payment fields stay in the form even when hidden, so changing status never wipes payment history. */}
-      <section className={`mt-3 rounded-2xl border border-slate-200 bg-white p-4 ${completed ? "" : "hidden"}`}>
-        <h2 className="mb-2 font-bold">Payment</h2>
-        <Field label="Expected payment date" htmlFor="expectedPayDate" hint={fmtDate(f.expectedPayDate)}>
+      <section className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
+        <h2 className="mb-2 font-bold">Pay dates</h2>
+        {f.officialPayDate ? (
+          <dl className="num mb-3 grid grid-cols-2 gap-2 text-sm">
+            <div className="col-span-2 rounded-xl bg-slate-50 p-3">
+              <dt className="text-xs text-slate-500">Pay period</dt>
+              <dd className="font-semibold">{fmtDate(f.payPeriodStart)} to {fmtDate(f.payPeriodEnd)}</dd>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <dt className="text-xs text-slate-500">Official pay date</dt>
+              <dd className="font-semibold">{fmtDayDate(f.officialPayDate)}</dd>
+            </div>
+            <div className="rounded-xl bg-yellow-50 p-3">
+              <dt className="text-xs text-slate-500">Expected pay date</dt>
+              <dd className="font-semibold">{fmtDayDate(f.expectedPayDate)}</dd>
+              {expectedVsOfficial !== null && expectedVsOfficial !== 0 && <dd className="text-xs text-slate-600">{lateness(expectedVsOfficial)}</dd>}
+            </div>
+          </dl>
+        ) : (
+          <p className="mb-3 text-xs text-slate-500">
+            {currentSite && !hasPayCycle(currentSite)
+              ? "This employer has no pay cycle yet, so the expected date is the shift date plus its usual delay. Set a pay cycle in Settings to get the official pay date."
+              : "Choose an employer to work out the pay dates."}
+          </p>
+        )}
+        <Field label="Expected pay date (you can change it)" htmlFor="expectedPayDate" hint={fmtDayDate(f.expectedPayDate)}>
           <input id="expectedPayDate" name="expectedPayDate" type="date" value={f.expectedPayDate} onChange={(e) => set({ expectedPayDate: e.target.value })} className="input" />
         </Field>
+      </section>
+
+      {/* Payment fields stay in the form even when hidden, so changing status never wipes payment history. */}
+      <section className={`mt-3 rounded-2xl border border-slate-200 bg-white p-4 ${completed ? "" : "hidden"}`}>
+        <h2 className="mb-2 font-bold">Payment received</h2>
         <Field label="Paid?">
           <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Paid">
             {[false, true].map((v) => (
@@ -240,7 +291,7 @@ export function ShiftForm({ sites, settings, initial, template, date, today, ret
           </div>
         </Field>
         <div className={`grid grid-cols-2 gap-2 ${f.paid ? "" : "hidden"}`}>
-          <Field label="Paid on" htmlFor="actualPayDate" hint={fmtDate(f.actualPayDate)}>
+          <Field label="Paid on" htmlFor="actualPayDate" hint={paidVsOfficial !== null ? `${fmtDayDate(f.actualPayDate)}, ${lateness(paidVsOfficial)}` : fmtDayDate(f.actualPayDate)}>
             <input id="actualPayDate" name="actualPayDate" type="date" value={f.actualPayDate} onChange={(e) => set({ actualPayDate: e.target.value })} className="input" />
           </Field>
           <Field label="Received ($)" htmlFor="actualAmount" hint={diff === null ? "" : diff === 0 ? "Matches expected" : `Difference: ${signedMoney(diff)}`}>

@@ -39,6 +39,9 @@ export const shiftSchema = z.object({
   otMultiplier: optionalMoney,
   status: z.enum(["SCHEDULED", "CONFIRMED", "COMPLETED", "CANCELLED"]),
   notes: text(500).optional().default(""),
+  payPeriodStart: optionalIso,
+  payPeriodEnd: optionalIso,
+  officialPayDate: optionalIso,
   expectedPayDate: optionalIso,
   paid: checkbox,
   actualPayDate: optionalIso,
@@ -56,9 +59,16 @@ export const siteSchema = z.object({
   defaultRate: optionalMoney,
   payFrequency: z.enum(["WEEKLY", "FORTNIGHTLY", "MONTHLY", "IRREGULAR"]),
   payDelayDays: z.coerce.number().int().min(0).max(120),
+  payPeriodStart: optionalIso,
+  payPeriodDays: z.coerce.number().int().refine((n) => n === 7 || n === 14, "Choose weekly or fortnightly"),
+  payWeekday: z.string().optional().transform((v) => (v ?? "").trim())
+    .refine((v) => v === "" || /^[0-6]$/.test(v), "Choose a pay day")
+    .transform((v) => (v === "" ? null : Number(v))),
+  payLateDays: z.coerce.number().int().min(0).max(60),
   notes: text(500).optional().default(""),
   renameExisting: checkbox,
   fillBlankRates: checkbox,
+  recalcUnpaid: checkbox,
 });
 
 export const settingsSchema = z.object({

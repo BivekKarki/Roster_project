@@ -17,6 +17,7 @@ export default async function UnpaidPage({ searchParams }: { searchParams: Searc
   const sp = await searchParams;
   const employer = one(sp.employer);
   const showPaid = one(sp.show) === "paid";
+  const grouped = one(sp.view) !== "list";
   const settings = await getSettings(userId);
   const today = todayIso();
 
@@ -37,7 +38,7 @@ export default async function UnpaidPage({ searchParams }: { searchParams: Searc
     waiting: unpaid.filter((s) => s.payState === "waiting"),
   };
   const link = (params: Record<string, string>) => {
-    const q = new URLSearchParams(Object.entries({ employer, show: showPaid ? "paid" : "", ...params }).filter(([, v]) => v)).toString();
+    const q = new URLSearchParams(Object.entries({ employer, show: showPaid ? "paid" : "", view: grouped ? "" : "list", ...params }).filter(([, v]) => v)).toString();
     return `/unpaid${q ? `?${q}` : ""}`;
   };
 
@@ -62,13 +63,17 @@ export default async function UnpaidPage({ searchParams }: { searchParams: Searc
               </Link>
             ))}
           </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Link href={link({ view: "" })} replace className={`rounded-xl border py-3 text-center text-sm font-semibold ${grouped ? "border-ink bg-ink text-white" : "border-slate-300 bg-white"}`}>By pay date</Link>
+            <Link href={link({ view: "list" })} replace className={`rounded-xl border py-3 text-center text-sm font-semibold ${!grouped ? "border-ink bg-ink text-white" : "border-slate-300 bg-white"}`}>Each shift</Link>
+          </div>
           <Link href={link({ show: showPaid ? "" : "paid" })} replace className="mt-3 block text-sm text-ink underline">
             {showPaid ? "Hide paid shifts" : "Also show shifts paid in the last 90 days"}
           </Link>
           {openCount > 0 && <p className="mt-2 text-xs text-slate-500">Only shifts marked Completed appear here. {openCount} past shift(s) are still Scheduled or Confirmed.</p>}
         </Card>
 
-        <UnpaidList key={employer || "all"} unpaid={unpaid} paid={paid} today={today} />
+        <UnpaidList key={`${employer || "all"}|${grouped}`} unpaid={unpaid} paid={paid} today={today} grouped={grouped} />
       </Page>
     </>
   );

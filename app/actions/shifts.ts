@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { calcHours, enrichShift, splitPayment } from "@/lib/calc";
-import { addDays, isoToDb, todayIso } from "@/lib/dates";
+import { calcHours, enrichShift, hasPayCycle, payDatesFor, splitPayment } from "@/lib/calc";
+import { getSettings } from "@/lib/data";
+import { addDays, diffDays, isoToDb, todayIso } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { plural } from "@/lib/format";
-import { toShiftDTO } from "@/lib/mappers";
+import { toShiftDTO, toSiteDTO } from "@/lib/mappers";
 import { requireUserId } from "@/lib/session";
 import type { ActionState } from "@/lib/types";
 import { firstError, formToObject, payBatchSchema, shiftSchema } from "@/lib/validation";
@@ -16,6 +17,8 @@ const safeReturn = (value: FormDataEntryValue | null, fallback = "/roster") => {
   return v.startsWith("/") && !v.startsWith("//") ? v : fallback;
 };
 
+const dbDate = (iso: string | null) => (iso ? isoToDb(iso) : null);
+
 export async function saveShift(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const userId = await requireUserId();
   const parsed = shiftSchema.safeParse(formToObject(formData));
@@ -24,14 +27,30 @@ export async function saveShift(_prev: ActionState, formData: FormData): Promise
   if (calcHours(d.startTime, d.endTime, d.breakMins) <= 0) return { error: "The break is longer than the shift." };
 
   // Link to the saved employer/location (by id, or by name if the id wasn't sent).
-  const site = await prisma.site.findFirst({
-    where: d.siteId ? { id: d.siteId, userId } : { userId, employer: d.employer, location: d.location },
-    select: { id: true },
-  });
+  const [siteRow, settings] = await Promise.all([
+    prisma.site.findFirst({
+      where: d.siteId ? { id: d.siteId, userId } : { userId, employer: d.employer, location: d.location },
+    }),
+    getSettings(userId),
+  ]);
+  const cycle = siteRow ? toSiteDTO(siteRow) : null;
 
-  // Every shift stores its own snapshot of names, times, rate and overtime rule.
+  // Pay dates: use what the form calculated (the expected date may have been edited).
+  // If the form didn't send an official date but the employer has a pay cycle, calculate it here.
+  const auto = payDatesFor(d.date, cycle, settings.payDelayDays);
+  const useAuto = hasPayCycle(cycle) && !d.officialPayDate;
+  const pay = useAuto
+    ? auto
+    : {
+        periodStart: d.payPeriodStart,
+        periodEnd: d.payPeriodEnd,
+        officialPayDate: d.officialPayDate,
+        expectedPayDate: d.expectedPayDate ?? auto.expectedPayDate,
+      };
+
+  // Every shift stores its own snapshot of names, times, rate, overtime rule and pay dates.
   const data = {
-    siteId: site?.id ?? null,
+    siteId: siteRow?.id ?? null,
     employer: d.employer,
     location: d.location,
     date: isoToDb(d.date),
@@ -43,7 +62,10 @@ export async function saveShift(_prev: ActionState, formData: FormData): Promise
     otMultiplier: d.otEnabled ? (d.otMultiplier ?? 1.5) : null,
     status: d.status,
     notes: d.notes,
-    expectedPayDate: d.expectedPayDate ? isoToDb(d.expectedPayDate) : null,
+    payPeriodStart: dbDate(pay.periodStart),
+    payPeriodEnd: dbDate(pay.periodEnd),
+    officialPayDate: dbDate(pay.officialPayDate),
+    expectedPayDate: dbDate(pay.expectedPayDate),
     paid: d.paid,
     actualPayDate: d.paid ? isoToDb(d.actualPayDate ?? todayIso()) : null,
     actualAmount: d.paid ? d.actualAmount : null,
@@ -55,12 +77,21 @@ export async function saveShift(_prev: ActionState, formData: FormData): Promise
     if (result.count === 0) return { error: "That shift no longer exists." };
   } else {
     const rows = [{ ...data, userId }];
+    // Keep any manual change to the expected date (e.g. +3 days) on the repeated shifts too.
+    const manualShift = pay.expectedPayDate ? diffDays(pay.expectedPayDate, auto.expectedPayDate) : 0;
     for (let week = 1; week <= d.repeatWeeks; week++) {
+      const date = addDays(d.date, 7 * week);
+      const next = hasPayCycle(cycle)
+        ? payDatesFor(date, cycle, settings.payDelayDays)
+        : { periodStart: null, periodEnd: null, officialPayDate: null, expectedPayDate: addDays(auto.expectedPayDate, 7 * week) };
       rows.push({
         ...data,
         userId,
-        date: isoToDb(addDays(d.date, 7 * week)),
-        expectedPayDate: d.expectedPayDate ? isoToDb(addDays(d.expectedPayDate, 7 * week)) : null,
+        date: isoToDb(date),
+        payPeriodStart: dbDate(next.periodStart),
+        payPeriodEnd: dbDate(next.periodEnd),
+        officialPayDate: dbDate(next.officialPayDate),
+        expectedPayDate: isoToDb(addDays(next.expectedPayDate, manualShift)),
         status: d.status === "COMPLETED" || d.status === "CANCELLED" ? "SCHEDULED" : d.status,
         paid: false,
         actualPayDate: null,

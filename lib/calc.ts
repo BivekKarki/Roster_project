@@ -2,11 +2,36 @@
  * Pure calculation logic shared by server pages and client forms.
  * No database or framework imports here.
  */
-import { addDays, dayName, diffDays, isIsoDate, mondayOf, MONTH_NAMES } from "./dates";
+import { addDays, dayName, diffDays, isIsoDate, mondayOf, MONTH_NAMES, weekdayOf } from "./dates";
 import { fmtDate, round2 } from "./format";
-import type { EnrichedShift, PeriodKind, SettingsDTO, ShiftDTO } from "./types";
+import type { EnrichedShift, PayCycle, PayDates, PeriodKind, SettingsDTO, ShiftDTO } from "./types";
 
-export const DEFAULT_FORTNIGHT_START = "2026-09-14";
+export const DEFAULT_FORTNIGHT_START = "2026-09-07";
+
+export const hasPayCycle = (c: PayCycle | null | undefined): c is PayCycle & { payPeriodStart: string; payWeekday: number } =>
+  !!c && isIsoDate(c.payPeriodStart) && c.payWeekday !== null && c.payWeekday >= 0 && c.payWeekday <= 6 && c.payPeriodDays > 0;
+
+/**
+ * Pay dates for a shift.
+ * With a pay cycle: the shift belongs to a fixed-length period counted from payPeriodStart
+ * (dates before the anchor work too). The official pay date is the first payWeekday AFTER the
+ * period ends, and the expected pay date adds the employer's usual lateness.
+ * Without a cycle: expected pay date = shift date + fallback delay.
+ */
+export function payDatesFor(shiftDate: string, cycle: PayCycle | null | undefined, fallbackDelayDays: number): PayDates {
+  if (!hasPayCycle(cycle)) {
+    const delay = cycle?.payDelayDays ?? fallbackDelayDays;
+    return { periodStart: null, periodEnd: null, officialPayDate: null, expectedPayDate: addDays(shiftDate, delay) };
+  }
+  const length = cycle.payPeriodDays;
+  const index = Math.floor(diffDays(shiftDate, cycle.payPeriodStart) / length);
+  const periodStart = addDays(cycle.payPeriodStart, index * length);
+  const periodEnd = addDays(periodStart, length - 1);
+  const dayAfterEnd = addDays(periodEnd, 1);
+  const officialPayDate = addDays(dayAfterEnd, (cycle.payWeekday - weekdayOf(dayAfterEnd) + 7) % 7);
+  const expectedPayDate = addDays(officialPayDate, cycle.payLateDays || 0);
+  return { periodStart, periodEnd, officialPayDate, expectedPayDate };
+}
 
 /** Paid hours between two "HH:MM" times minus an unpaid break. Handles overnight shifts. */
 export function calcHours(start: string, end: string, breakMins: number) {
@@ -51,7 +76,12 @@ export function enrichShift(s: ShiftDTO, today: string, dueSoonDays: number): En
       }
     }
   }
-  return { ...s, day: dayName(s.date), hours, pay, paidAmount, difference, payState, daysOverdue, daysUntilDue };
+  const expectedLateDays = s.officialPayDate && s.expectedPayDate ? diffDays(s.expectedPayDate, s.officialPayDate) : null;
+  const paidDaysAfterOfficial = s.paid && s.officialPayDate && s.actualPayDate ? diffDays(s.actualPayDate, s.officialPayDate) : null;
+  return {
+    ...s, day: dayName(s.date), hours, pay, paidAmount, difference, payState, daysOverdue, daysUntilDue,
+    expectedLateDays, paidDaysAfterOfficial,
+  };
 }
 
 const sum = <T,>(arr: T[], f: (x: T) => number | null | undefined) => round2(arr.reduce((a, x) => a + (f(x) || 0), 0));

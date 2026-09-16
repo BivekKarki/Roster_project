@@ -1,9 +1,10 @@
 "use server";
 
+import { DEFAULT_FORTNIGHT_START } from "@/lib/calc";
 import bcrypt from "bcryptjs";
 import { AuthError } from "next-auth";
 import { signIn, signOut } from "@/auth";
-import { isoToDb, mondayOf, todayIso } from "@/lib/dates";
+import { isoToDb } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { createSampleData } from "@/lib/sample";
 import type { ActionState } from "@/lib/types";
@@ -34,7 +35,7 @@ export async function signup(_prev: ActionState, formData: FormData): Promise<Ac
   const user = await prisma.user.create({
     data: {
       email, name: name || null, passwordHash,
-      settings: { create: { fortnightStart: isoToDb(mondayOf(todayIso())) } },
+      settings: { create: { fortnightStart: isoToDb(DEFAULT_FORTNIGHT_START) } },
     },
   });
   if (sample) await createSampleData(user.id);

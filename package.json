@@ -11,14 +11,14 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "tsx --test \"lib/**/*.test.ts\""
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
     "@prisma/adapter-neon": "7.10.0",
     "@prisma/client": "7.10.0",
     "bcryptjs": "^3.0.3",
-    "bufferutil": "^4.0.9",
     "exceljs": "^4.4.0",
     "next": "15.5.25",
     "next-auth": "5.0.0-beta.32",

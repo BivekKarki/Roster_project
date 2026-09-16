@@ -4,17 +4,40 @@ import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { markPaid, markUnpaid } from "@/app/actions/shifts";
 import { PAY_STATE_META, splitPayment, sum } from "@/lib/calc";
-import { fmtDate, money, plural, round2, signedMoney } from "@/lib/format";
+import { diffDays } from "@/lib/dates";
+import { fmtDate, fmtDayDate, lateness, money, plural, round2, signedMoney } from "@/lib/format";
 import type { EnrichedShift } from "@/lib/types";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, btn, Field } from "./ui";
 
-export function UnpaidList({ unpaid, paid, today }: { unpaid: EnrichedShift[]; paid: EnrichedShift[]; today: string }) {
+type Group = { key: string; expected: string | null; official: string | null; periodStart: string | null; periodEnd: string | null; shifts: EnrichedShift[] };
+
+/** Shifts that are expected on the same day (and share an official date) are usually one payment. */
+function groupByPayDate(list: EnrichedShift[]): Group[] {
+  const map = new Map<string, Group>();
+  for (const s of list) {
+    const key = `${s.expectedPayDate ?? "none"}|${s.officialPayDate ?? ""}`;
+    if (!map.has(key)) {
+      map.set(key, { key, expected: s.expectedPayDate, official: s.officialPayDate, periodStart: s.payPeriodStart, periodEnd: s.payPeriodEnd, shifts: [] });
+    }
+    const g = map.get(key)!;
+    g.shifts.push(s);
+    if (s.payPeriodStart && (!g.periodStart || s.payPeriodStart < g.periodStart)) g.periodStart = s.payPeriodStart;
+    if (s.payPeriodEnd && (!g.periodEnd || s.payPeriodEnd > g.periodEnd)) g.periodEnd = s.payPeriodEnd;
+  }
+  return [...map.values()].sort((a, b) => (a.expected ?? "9999").localeCompare(b.expected ?? "9999"));
+}
+
+export function UnpaidList({ unpaid, paid, today, grouped }: { unpaid: EnrichedShift[]; paid: EnrichedShift[]; today: string; grouped: boolean }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [paying, setPaying] = useState<EnrichedShift[] | null>(null);
   const [notice, setNotice] = useState("");
   const selectedShifts = unpaid.filter((s) => selected.includes(s.id));
   const toggle = (id: string) => setSelected((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+
+  const card = (s: EnrichedShift) => (
+    <ShiftCard key={s.id} s={s} checked={selected.includes(s.id)} onToggle={() => toggle(s.id)} onPay={() => setPaying([s])} />
+  );
 
   return (
     <>
@@ -26,7 +49,7 @@ export function UnpaidList({ unpaid, paid, today }: { unpaid: EnrichedShift[]; p
           <button type="button" onClick={() => setSelected([])} className="rounded-lg bg-white/15 px-3 py-2 text-sm">Clear</button>
           <button type="button" onClick={() => setPaying(selectedShifts)} className="rounded-lg bg-green-500 px-3 py-2 font-semibold">Mark paid</button>
         </div>
-      ) : unpaid.length > 1 ? (
+      ) : unpaid.length > 1 && !grouped ? (
         <button type="button" onClick={() => setSelected(unpaid.map((s) => s.id))} className={`${btn.ghost} w-full`}>
           Select all unpaid ({unpaid.length})
         </button>
@@ -34,45 +57,35 @@ export function UnpaidList({ unpaid, paid, today }: { unpaid: EnrichedShift[]; p
 
       {unpaid.length === 0 && <p className="py-6 text-center text-slate-500">Nothing unpaid. 🎉</p>}
 
-      {[...unpaid, ...paid].map((s) => {
-        const meta = PAY_STATE_META[s.payState ?? "waiting"];
-        return (
-          <div key={s.id} className={`rounded-2xl border p-3 ${meta.card}`}>
-            <div className="flex gap-3">
-              {!s.paid && (
-                <input type="checkbox" aria-label={`Select ${s.employer} ${fmtDate(s.date)}`} checked={selected.includes(s.id)}
-                  onChange={() => toggle(s.id)} className="mt-1 h-6 w-6 shrink-0 accent-ink" />
-              )}
-              <Link href={`/shifts/${s.id}?returnTo=/unpaid`} className="min-w-0 flex-1">
-                <div className="font-bold">
-                  {meta.icon} {meta.label}
-                  {s.payState === "overdue" && `, ${plural(s.daysOverdue, "day")} overdue`}
-                  {!s.paid && s.daysUntilDue === 0 && ", due today"}
-                  {!s.paid && s.daysUntilDue !== null && s.daysUntilDue > 0 && `, due in ${plural(s.daysUntilDue, "day")}`}
+      {grouped
+        ? groupByPayDate(unpaid).map((g) => {
+            const state = g.shifts[0].payState ?? "waiting";
+            const meta = PAY_STATE_META[state];
+            const total = sum(g.shifts, (s) => s.pay);
+            return (
+              <section key={g.key} className={`space-y-2 rounded-2xl border p-3 ${meta.card}`}>
+                <div className="num">
+                  <div className="font-bold">{meta.icon} Expected {fmtDayDate(g.expected)}</div>
+                  {g.official && (
+                    <div className="text-sm text-slate-700">
+                      Official {fmtDayDate(g.official)}
+                      {g.expected && g.official !== g.expected ? ` (${lateness(diffDays(g.expected, g.official))})` : ""}
+                    </div>
+                  )}
+                  {g.periodStart && <div className="text-sm text-slate-700">Pay period {fmtDate(g.periodStart)} to {fmtDate(g.periodEnd)}</div>}
+                  <div className="mt-1 text-sm">{plural(g.shifts.length, "shift")}, <b>{money(total)}</b>{g.shifts.some((s) => s.pay === null) ? " (some rates missing)" : ""}</div>
                 </div>
-                <div className="text-slate-800">{s.employer}, {s.location}</div>
-                <dl className="num mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-                  <div><dt className="inline text-slate-500">Shift: </dt><dd className="inline">{fmtDate(s.date)}</dd></div>
-                  <div><dt className="inline text-slate-500">Pay due: </dt><dd className="inline">{fmtDate(s.expectedPayDate)}</dd></div>
-                  <div><dt className="inline text-slate-500">Hours: </dt><dd className="inline">{round2(s.hours)}</dd></div>
-                  <div><dt className="inline text-slate-500">Rate: </dt><dd className="inline">{s.rate === null ? <span className="text-orange-700">not set</span> : money(s.rate)}</dd></div>
-                  <div className="col-span-2"><dt className="inline text-slate-500">Expected: </dt><dd className="inline font-bold">{money(s.pay)}</dd>
-                    {s.paid && <dd className="inline"> · received {money(s.paidAmount)} on {fmtDate(s.actualPayDate)}{s.difference ? ` (${signedMoney(s.difference)})` : ""}</dd>}
-                  </div>
-                </dl>
-              </Link>
-            </div>
-            {s.paid ? (
-              <form action={markUnpaid} className="mt-2">
-                <input type="hidden" name="id" value={s.id} />
-                <SubmitButton variant="ghost" pendingText="Updating…" className="w-full text-sm">Undo: mark as unpaid</SubmitButton>
-              </form>
-            ) : (
-              <button type="button" onClick={() => setPaying([s])} className={`${btn.go} mt-3 w-full`}>Mark paid</button>
-            )}
-          </div>
-        );
-      })}
+                <button type="button" onClick={() => setPaying(g.shifts)} className={`${btn.go} w-full`}>
+                  Mark {g.shifts.length > 1 ? `these ${g.shifts.length}` : "this"} paid
+                </button>
+                {g.shifts.map(card)}
+              </section>
+            );
+          })
+        : unpaid.map(card)}
+
+      {paid.length > 0 && <h2 className="px-1 pt-2 font-bold">Paid in the last 90 days</h2>}
+      {paid.map(card)}
 
       {paying && (
         <PaySheet
@@ -90,6 +103,61 @@ export function UnpaidList({ unpaid, paid, today }: { unpaid: EnrichedShift[]; p
   );
 }
 
+function ShiftCard({ s, checked, onToggle, onPay }: { s: EnrichedShift; checked: boolean; onToggle: () => void; onPay: () => void }) {
+  const meta = PAY_STATE_META[s.payState ?? "waiting"];
+  return (
+    <div className={`rounded-2xl border p-3 ${meta.card}`}>
+      <div className="flex gap-3">
+        {!s.paid && (
+          <input type="checkbox" aria-label={`Select ${s.employer} ${fmtDate(s.date)}`} checked={checked} onChange={onToggle}
+            className="mt-1 h-6 w-6 shrink-0 accent-ink" />
+        )}
+        <Link href={`/shifts/${s.id}?returnTo=/unpaid`} className="min-w-0 flex-1">
+          <div className="font-bold">
+            {meta.icon} {meta.label}
+            {s.payState === "overdue" && `, ${plural(s.daysOverdue, "day")} overdue`}
+            {!s.paid && s.daysUntilDue === 0 && ", due today"}
+            {!s.paid && s.daysUntilDue !== null && s.daysUntilDue > 0 && `, due in ${plural(s.daysUntilDue, "day")}`}
+          </div>
+          <div className="text-slate-800">{s.employer}, {s.location}</div>
+          <dl className="num mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+            <div><dt className="inline text-slate-500">Shift: </dt><dd className="inline">{fmtDate(s.date)}</dd></div>
+            <div><dt className="inline text-slate-500">Hours: </dt><dd className="inline">{round2(s.hours)}</dd></div>
+            {s.officialPayDate && (
+              <div className="col-span-2"><dt className="inline text-slate-500">Official pay: </dt><dd className="inline">{fmtDayDate(s.officialPayDate)}</dd></div>
+            )}
+            <div className="col-span-2">
+              <dt className="inline text-slate-500">Expected pay: </dt>
+              <dd className="inline font-semibold">{fmtDayDate(s.expectedPayDate)}</dd>
+              {s.expectedLateDays ? <dd className="inline text-slate-600"> ({lateness(s.expectedLateDays)})</dd> : null}
+            </div>
+            <div><dt className="inline text-slate-500">Rate: </dt><dd className="inline">{s.rate === null ? <span className="text-orange-700">not set</span> : money(s.rate)}</dd></div>
+            <div><dt className="inline text-slate-500">Expected: </dt><dd className="inline font-bold">{money(s.pay)}</dd></div>
+            {s.paid && (
+              <div className="col-span-2">
+                <dt className="inline text-slate-500">Received: </dt>
+                <dd className="inline">
+                  {money(s.paidAmount)} on {fmtDayDate(s.actualPayDate)}
+                  {s.difference ? ` (${signedMoney(s.difference)})` : ""}
+                  {s.paidDaysAfterOfficial !== null ? `, ${lateness(s.paidDaysAfterOfficial)}` : ""}
+                </dd>
+              </div>
+            )}
+          </dl>
+        </Link>
+      </div>
+      {s.paid ? (
+        <form action={markUnpaid} className="mt-2">
+          <input type="hidden" name="id" value={s.id} />
+          <SubmitButton variant="ghost" pendingText="Updating…" className="w-full text-sm">Undo: mark as unpaid</SubmitButton>
+        </form>
+      ) : (
+        <button type="button" onClick={onPay} className={`${btn.go} mt-3 w-full`}>Mark paid</button>
+      )}
+    </div>
+  );
+}
+
 function PaySheet({ targets, today, onClose, onDone }: {
   targets: EnrichedShift[]; today: string; onClose: () => void; onDone: (message: string) => void;
 }) {
@@ -102,6 +170,8 @@ function PaySheet({ targets, today, onClose, onDone }: {
   const diff = received !== null && Number.isFinite(received) ? round2(received - total) : null;
   const canSplit = targets.every((s) => s.pay !== null && s.pay > 0);
   const preview = !single && canSplit && received !== null ? splitPayment(received, targets.map((s) => s.pay as number)) : null;
+  const officials = [...new Set(targets.map((s) => s.officialPayDate).filter(Boolean))] as string[];
+  const vsOfficial = officials.length === 1 ? diffDays(date, officials[0]) : null;
 
   useEffect(() => {
     if (state?.ok) onDone(state.message ?? "Marked paid");
@@ -126,7 +196,7 @@ function PaySheet({ targets, today, onClose, onDone }: {
             {targets.length > 10 && <div className="text-slate-500">and {targets.length - 10} more</div>}
             <div className="flex justify-between border-t border-slate-200 pt-1 font-bold"><span>Expected</span><span>{money(total)}</span></div>
           </div>
-          <Field label="Payment date" htmlFor="payDate" hint={fmtDate(date)}>
+          <Field label="Payment date" htmlFor="payDate" hint={vsOfficial !== null ? `${fmtDayDate(date)}, ${lateness(vsOfficial)} vs official ${fmtDayDate(officials[0])}` : fmtDayDate(date)}>
             <input id="payDate" name="payDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="input" />
           </Field>
           <Field label={single ? "Amount received ($)" : "Total received ($)"} htmlFor="amount"

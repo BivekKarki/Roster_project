@@ -35,6 +35,9 @@ export type ShiftDTO = {
   otMultiplier: number | null;
   status: Status;
   notes: string;
+  payPeriodStart: string | null;
+  payPeriodEnd: string | null;
+  officialPayDate: string | null;
   expectedPayDate: string | null;
   paid: boolean;
   actualPayDate: string | null;
@@ -51,6 +54,10 @@ export type EnrichedShift = ShiftDTO & {
   payState: PayState | null;
   daysOverdue: number;
   daysUntilDue: number | null;
+  /** expected pay date minus official pay date */
+  expectedLateDays: number | null;
+  /** actual pay date minus official pay date (paid shifts only) */
+  paidDaysAfterOfficial: number | null;
 };
 
 export type SiteDTO = {
@@ -62,8 +69,24 @@ export type SiteDTO = {
   defaultRate: number | null;
   payFrequency: Frequency;
   payDelayDays: number;
+  payPeriodStart: string | null;
+  payPeriodDays: number;
+  payWeekday: number | null;
+  payLateDays: number;
   notes: string;
 };
+
+/** The parts of an employer that decide pay dates */
+export type PayCycle = Pick<SiteDTO, "payPeriodStart" | "payPeriodDays" | "payWeekday" | "payLateDays" | "payDelayDays">;
+
+export type PayDates = {
+  periodStart: string | null;
+  periodEnd: string | null;
+  officialPayDate: string | null;
+  expectedPayDate: string;
+};
+
+export const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export type SettingsDTO = {
   payDelayDays: number;

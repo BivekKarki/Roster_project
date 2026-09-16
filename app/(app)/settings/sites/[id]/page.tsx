@@ -6,6 +6,7 @@ import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { SiteForm } from "@/components/SiteForm";
 import { Page, PageHeader } from "@/components/ui";
 import { getSettings, getSites } from "@/lib/data";
+import { todayIso } from "@/lib/dates";
 import { plural } from "@/lib/format";
 import { requireUserId } from "@/lib/session";
 import { siteShiftCounts } from "@/lib/siteCounts";
@@ -25,7 +26,7 @@ export default async function EditSitePage({ params }: { params: Promise<{ id: s
       <PageHeader title="Edit employer" subtitle={`${site.employer}, ${site.location}`}
         action={<Link href="/settings" className="rounded-lg bg-white/15 px-3 py-2 text-sm font-semibold">Cancel</Link>} />
       <Page>
-        <SiteForm site={site} employers={[...new Set(sites.map((s) => s.employer))]} defaultDelay={settings.payDelayDays} {...counts} />
+        <SiteForm site={site} employers={[...new Set(sites.map((s) => s.employer))]} defaultDelay={settings.payDelayDays} today={todayIso()} {...counts} />
         <form action={deleteSite} className="space-y-1">
           <input type="hidden" name="id" value={site.id} />
           <ConfirmSubmit label="Remove this employer" confirmLabel="Tap again to remove" className="w-full" />

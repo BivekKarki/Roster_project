@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PAY_STATE_META } from "@/lib/calc";
-import { fmtDate, fmtHours, fmtTime, money } from "@/lib/format";
+import { fmtDate, fmtDayDate, fmtHours, fmtTime, money } from "@/lib/format";
 import type { EnrichedShift } from "@/lib/types";
 import { StatusPill } from "./ui";
 
@@ -25,6 +25,11 @@ export function ShiftRow({ s, showDate = false, returnTo }: { s: EnrichedShift; 
         {s.payState && <span className="text-xs text-slate-700">{PAY_STATE_META[s.payState].icon} {PAY_STATE_META[s.payState].label}</span>}
         {s.notes && <span className="truncate text-xs text-slate-500">📝 {s.notes}</span>}
       </div>
+      {s.status === "COMPLETED" && !s.paid && s.expectedPayDate && (
+        <div className="num mt-1 text-xs text-slate-600">
+          {s.officialPayDate ? <>Official pay {fmtDayDate(s.officialPayDate)}, expected {fmtDayDate(s.expectedPayDate)}</> : <>Expected pay {fmtDayDate(s.expectedPayDate)}</>}
+        </div>
+      )}
     </Link>
   );
 }

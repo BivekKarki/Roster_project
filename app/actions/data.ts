@@ -36,7 +36,10 @@ export async function importBackup(_prev: ActionState, formData: FormData): Prom
       await tx.site.deleteMany({ where: { userId } });
     }
     if (backup.sites.length) {
-      await tx.site.createMany({ data: backup.sites.map((s) => ({ ...s, userId })), skipDuplicates: true });
+      await tx.site.createMany({
+        data: backup.sites.map((s) => ({ ...s, userId, payPeriodStart: s.payPeriodStart ? isoToDb(s.payPeriodStart) : null })),
+        skipDuplicates: true,
+      });
     }
     const sites = await tx.site.findMany({ where: { userId }, select: { id: true, employer: true, location: true } });
     const siteIds = new Map(sites.map((s) => [`${s.employer}|${s.location}`, s.id]));
@@ -47,6 +50,9 @@ export async function importBackup(_prev: ActionState, formData: FormData): Prom
           userId,
           siteId: siteIds.get(`${s.employer}|${s.location}`) ?? null,
           date: isoToDb(s.date),
+          payPeriodStart: s.payPeriodStart ? isoToDb(s.payPeriodStart) : null,
+          payPeriodEnd: s.payPeriodEnd ? isoToDb(s.payPeriodEnd) : null,
+          officialPayDate: s.officialPayDate ? isoToDb(s.officialPayDate) : null,
           expectedPayDate: s.expectedPayDate ? isoToDb(s.expectedPayDate) : null,
           actualPayDate: s.actualPayDate ? isoToDb(s.actualPayDate) : null,
         })),
@@ -58,7 +64,7 @@ export async function importBackup(_prev: ActionState, formData: FormData): Prom
       await tx.settings.upsert({
         where: { userId },
         update: data,
-        create: { userId, ...rest, fortnightStart: isoToDb(fortnightStart ?? "2026-09-14") },
+        create: { userId, ...rest, fortnightStart: isoToDb(fortnightStart ?? "2026-09-07") },
       });
     }
   }, { timeout: 30_000 });

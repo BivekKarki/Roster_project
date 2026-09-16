@@ -60,7 +60,16 @@ model Site {
   defaultEnd   String?
   defaultRate  Decimal?     @db.Decimal(10, 2)
   payFrequency PayFrequency @default(FORTNIGHTLY)
+  /// Fallback when no pay cycle is set: expected pay date = shift date + payDelayDays
   payDelayDays Int          @default(14)
+  /// Pay cycle: any first day of a pay period (e.g. 2026-09-07)
+  payPeriodStart DateTime?  @db.Date
+  /// 7 = weekly, 14 = fortnightly
+  payPeriodDays  Int        @default(14)
+  /// 0 = Sunday ... 6 = Saturday. Official pay date = first of this weekday AFTER the period ends
+  payWeekday     Int?
+  /// The employer usually pays this many days after the official pay date
+  payLateDays    Int        @default(0)
   notes        String       @default("")
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -88,6 +97,11 @@ model Shift {
   otMultiplier    Decimal?    @db.Decimal(4, 2)
   status          ShiftStatus @default(SCHEDULED)
   notes           String      @default("")
+  /// Pay period and official pay date are snapshots saved with the shift
+  payPeriodStart  DateTime?   @db.Date
+  payPeriodEnd    DateTime?   @db.Date
+  officialPayDate DateTime?   @db.Date
+  /// Official pay date + employer's usual lateness (editable per shift)
   expectedPayDate DateTime?   @db.Date
   paid            Boolean     @default(false)
   actualPayDate   DateTime?   @db.Date
