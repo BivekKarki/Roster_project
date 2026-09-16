@@ -112,7 +112,7 @@ Statuses, rates, overtime rules and payment records all carry across.
 app/
   (auth)/login, signup          Sign in / create account
   (app)/page.tsx                Dashboard (week / fortnight / month / FY)
-  (app)/roster                  Week calendar with daily hours
+  (app)/roster                  Month calendar (dot per shift, today highlighted) + week view
   (app)/shifts                  All shifts, search + filters, export
   (app)/shifts/new, [id]        Add / edit shift
   (app)/unpaid                  Unpaid tracker, bulk mark-paid

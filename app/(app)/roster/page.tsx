@@ -1,19 +1,68 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { MonthCalendar } from "@/components/MonthCalendar";
 import { ShiftRow } from "@/components/ShiftRow";
-import { btn, Card, Page, PageHeader } from "@/components/ui";
+import { btn, Card, Page, PageHeader, SegmentedLinks } from "@/components/ui";
+import { defaultSelectedDay, employerColours, isMonthKey, monthGrid, monthLabel, monthOf } from "@/lib/calendar";
 import { sum } from "@/lib/calc";
 import { dateRange, findShifts, getSettings } from "@/lib/data";
 import { addDays, dayName, diffDays, isIsoDate, mondayOf, todayIso } from "@/lib/dates";
 import { fmtDate, fmtHours, money, plural } from "@/lib/format";
 import { intParam, one, type SearchParams } from "@/lib/params";
+import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Roster" };
 
 export default async function RosterPage({ searchParams }: { searchParams: SearchParams }) {
-  const userId = await requireUserId();
   const sp = await searchParams;
+  // Old week links (?week= / ?date=) still open the week view.
+  const weekView = one(sp.view) === "week" || !!one(sp.week) || !!one(sp.date);
+  return weekView ? <WeekView sp={sp} /> : <MonthView sp={sp} />;
+}
+
+const VIEW_TABS = (active: "month" | "week") => (
+  <SegmentedLinks value={active} options={[
+    { value: "month", label: "Month", href: "/roster" },
+    { value: "week", label: "Week", href: "/roster?view=week" },
+  ]} />
+);
+
+async function MonthView({ sp }: { sp: Awaited<SearchParams> }) {
+  const userId = await requireUserId();
+  const today = todayIso();
+  const month = isMonthKey(one(sp.month)) ? one(sp.month) : monthOf(today);
+  const grid = monthGrid(month);
+  const settings = await getSettings(userId);
+
+  const [shifts, siteNames, shiftNames] = await Promise.all([
+    findShifts(userId, { date: dateRange(grid.start, grid.end) }, settings),
+    prisma.site.findMany({ where: { userId }, select: { employer: true }, distinct: ["employer"] }),
+    prisma.shift.findMany({ where: { userId }, select: { employer: true }, distinct: ["employer"] }),
+  ]);
+  // Colours are based on all your employers, so they don't change from month to month.
+  const colours = employerColours([...siteNames, ...shiftNames].map((r) => r.employer));
+
+  return (
+    <>
+      <PageHeader title="Roster" subtitle={monthLabel(month)} />
+      <Page>
+        {VIEW_TABS("month")}
+        <MonthCalendar
+          key={month}
+          month={month}
+          today={today}
+          initialDay={defaultSelectedDay(month, today, one(sp.day))}
+          shifts={shifts}
+          colours={colours}
+        />
+      </Page>
+    </>
+  );
+}
+
+async function WeekView({ sp }: { sp: Awaited<SearchParams> }) {
+  const userId = await requireUserId();
   const today = todayIso();
   const jump = one(sp.date);
   const offset = isIsoDate(jump)
@@ -26,25 +75,27 @@ export default async function RosterPage({ searchParams }: { searchParams: Searc
   const settings = await getSettings(userId);
   const shifts = await findShifts(userId, { date: dateRange(start, end) }, settings);
   const active = shifts.filter((s) => s.status !== "CANCELLED");
-  const here = `/roster?week=${offset}`;
+  const here = `/roster?view=week&week=${offset}`;
 
   return (
     <>
       <PageHeader title="Roster" subtitle={`Week of ${fmtDate(start)}`} />
       <Page>
+        {VIEW_TABS("week")}
         <Card>
           <div className="flex items-center justify-between">
-            <Link href={`/roster?week=${offset - 1}`} replace scroll={false} className="rounded-xl bg-slate-100 px-4 py-3 text-lg" aria-label="Previous week">‹</Link>
+            <Link href={`/roster?view=week&week=${offset - 1}`} replace scroll={false} className="rounded-xl bg-slate-100 px-4 py-3 text-lg" aria-label="Previous week">‹</Link>
             <div className="text-center">
               <div className="num font-semibold">{fmtDate(start)} to {fmtDate(end)}</div>
               <div className="num text-sm text-slate-600">{fmtHours(sum(active, (s) => s.hours))} across {plural(active.length, "shift")}, {money(sum(active, (s) => s.pay))}</div>
             </div>
-            <Link href={`/roster?week=${offset + 1}`} replace scroll={false} className="rounded-xl bg-slate-100 px-4 py-3 text-lg" aria-label="Next week">›</Link>
+            <Link href={`/roster?view=week&week=${offset + 1}`} replace scroll={false} className="rounded-xl bg-slate-100 px-4 py-3 text-lg" aria-label="Next week">›</Link>
           </div>
           <form action="/roster" className="mt-3 flex gap-2">
+            <input type="hidden" name="view" value="week" />
             <input type="date" name="date" aria-label="Jump to date" className="input" />
             <button type="submit" className={btn.ghost}>Go</button>
-            {offset !== 0 && <Link href="/roster" className={btn.ghost}>Today</Link>}
+            {offset !== 0 && <Link href="/roster?view=week" className={btn.ghost}>Today</Link>}
           </form>
         </Card>
 
