@@ -76,6 +76,8 @@ model Settings {
   overtimeEnabled    Boolean  @default(false)
   overtimeThreshold  Decimal  @default(8) @db.Decimal(5, 2)
   overtimeMultiplier Decimal  @default(1.5) @db.Decimal(4, 2)
+  /// Mark shifts Completed automatically once their end time has passed
+  autoCompleteShifts Boolean  @default(true)
   /// Log out automatically after this many minutes without activity. 0 = never.
   idleTimeoutMinutes Int      @default(30)
   updatedAt          DateTime @updatedAt
@@ -128,6 +130,9 @@ model Shift {
   otThreshold     Decimal?    @db.Decimal(5, 2)
   otMultiplier    Decimal?    @db.Decimal(4, 2)
   status          ShiftStatus @default(SCHEDULED)
+  /// When true, a Scheduled/Confirmed shift becomes Completed automatically after its end time.
+  /// Set to false when you pick a status by hand for a shift that has already ended.
+  autoStatus      Boolean     @default(true)
   notes           String      @default("")
   /// Pay period and official pay date are snapshots saved with the shift
   payPeriodStart  DateTime?   @db.Date

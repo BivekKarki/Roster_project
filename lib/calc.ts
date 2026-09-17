@@ -4,6 +4,7 @@
  */
 import { addDays, dayName, diffDays, isIsoDate, mondayOf, MONTH_NAMES, weekdayOf } from "./dates";
 import { fmtDate, round2 } from "./format";
+import { appTimeZone, shiftPhase, shiftWindow } from "./shift-time";
 import type { EnrichedShift, PayCycle, PayDates, PeriodKind, SettingsDTO, ShiftDTO } from "./types";
 
 export const DEFAULT_FORTNIGHT_START = "2026-09-14";
@@ -61,7 +62,7 @@ export function calcPay(hours: number, rate: number | null, otThreshold: number 
   return round2(hours * rate);
 }
 
-export function enrichShift(s: ShiftDTO, today: string, dueSoonDays: number): EnrichedShift {
+export function enrichShift(s: ShiftDTO, today: string, dueSoonDays: number, nowMs = Date.now(), timeZone = appTimeZone()): EnrichedShift {
   const hours = calcHours(s.startTime, s.endTime, s.breakMins);
   const pay = calcPay(hours, s.rate, s.otThreshold, s.otMultiplier);
   const paidAmount = s.paid ? (s.actualAmount ?? pay ?? 0) : 0;
@@ -88,6 +89,7 @@ export function enrichShift(s: ShiftDTO, today: string, dueSoonDays: number): En
   const paidDaysAfterOfficial = s.paid && s.officialPayDate && s.actualPayDate ? diffDays(s.actualPayDate, s.officialPayDate) : null;
   return {
     ...s, day: dayName(s.date), hours, pay, paidAmount, difference, payState, daysOverdue, daysUntilDue,
+    phase: s.startTime && s.endTime ? shiftPhase(nowMs, shiftWindow(s.date, s.startTime, s.endTime, timeZone)) : "upcoming",
     expectedLateDays, paidDaysAfterOfficial,
   };
 }

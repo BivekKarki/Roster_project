@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/auth";
 import { summarizeByEmployer } from "@/lib/calc";
+import { syncShiftStatuses } from "@/lib/shiftStatusSync";
 import { findShifts, getSettings, getSites } from "@/lib/data";
 import { todayIso } from "@/lib/dates";
 import { fmtDate, fmtTime } from "@/lib/format";
@@ -15,6 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  await syncShiftStatuses(userId);
 
   const { format } = await params;
   const stamp = todayIso();
@@ -80,7 +82,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       shifts: all.map((s) => ({
         employer: s.employer, location: s.location, date: s.date, startTime: s.startTime, endTime: s.endTime,
         breakMins: s.breakMins, rate: s.rate, otThreshold: s.otThreshold, otMultiplier: s.otMultiplier,
-        status: s.status, notes: s.notes, payPeriodStart: s.payPeriodStart, payPeriodEnd: s.payPeriodEnd,
+        status: s.status, autoStatus: s.autoStatus, notes: s.notes, payPeriodStart: s.payPeriodStart, payPeriodEnd: s.payPeriodEnd,
         officialPayDate: s.officialPayDate, expectedPayDate: s.expectedPayDate, paid: s.paid,
         actualPayDate: s.actualPayDate, actualAmount: s.actualAmount, payNotes: s.payNotes,
       })),

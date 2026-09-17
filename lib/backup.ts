@@ -42,7 +42,7 @@ export type ImportSite = {
 };
 export type ImportShift = {
   employer: string; location: string; date: string; startTime: string; endTime: string; breakMins: number;
-  rate: number | null; otThreshold: number | null; otMultiplier: number | null; status: Status; notes: string;
+  rate: number | null; otThreshold: number | null; otMultiplier: number | null; status: Status; autoStatus: boolean; notes: string;
   payPeriodStart: string | null; payPeriodEnd: string | null; officialPayDate: string | null;
   expectedPayDate: string | null; paid: boolean; actualPayDate: string | null; actualAmount: number | null; payNotes: string;
 };
@@ -100,6 +100,7 @@ export function parseBackup(raw: string) {
       otThreshold: money(item.otThreshold ?? ot?.threshold),
       otMultiplier: money(item.otMultiplier ?? ot?.multiplier),
       status: status(item.status),
+      autoStatus: item.autoStatus !== false,
       notes: str(item.notes),
       payPeriodStart: date(item.payPeriodStart),
       payPeriodEnd: date(item.payPeriodEnd),

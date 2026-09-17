@@ -1,12 +1,15 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { saveShift } from "@/app/actions/shifts";
 import { calcHours, calcPay, hasPayCycle, payDatesFor } from "@/lib/calc";
 import { dayName, diffDays, isIsoDate } from "@/lib/dates";
 import { fmtDate, fmtDayDate, fmtHours, fmtTime, lateness, money, round2, signedMoney } from "@/lib/format";
 import { STATUS_LABEL, STATUSES, type SettingsDTO, type ShiftDTO, type SiteDTO, type Status } from "@/lib/types";
+import { appTimeZone, automaticStatus, shiftPhase, shiftWindow } from "@/lib/shift-time";
+import { LiveStatusPill, useNow } from "./LiveStatusPill";
 import { SubmitButton } from "./SubmitButton";
+import { useCurrentUser } from "./UserContext";
 import { Alert, Field } from "./ui";
 
 const BREAKS = [0, 10, 15, 20, 30, 45, 60];
@@ -16,7 +19,7 @@ type FormState = {
   id: string; siteId: string; employer: string; location: string; date: string;
   startTime: string; endTime: string; breakMins: number; rate: string;
   otEnabled: boolean; otThreshold: string; otMultiplier: string;
-  status: Status; notes: string;
+  status: Status; autoStatus: boolean; notes: string;
   payPeriodStart: string; payPeriodEnd: string; officialPayDate: string; expectedPayDate: string;
   paid: boolean; actualPayDate: string; actualAmount: string; payNotes: string;
 };
@@ -62,6 +65,7 @@ export function ShiftForm({ sites, settings, initial, template, date, today, ret
         otEnabled: src.otThreshold !== null, otThreshold: numStr(src.otThreshold ?? settings.overtimeThreshold),
         otMultiplier: numStr(src.otMultiplier ?? settings.overtimeMultiplier),
         status: copy ? (d < today ? "COMPLETED" : "SCHEDULED") : src.status,
+        autoStatus: copy ? true : src.autoStatus,
         notes: src.notes,
         ...(copy
           ? datesFor(d, site)
@@ -80,12 +84,18 @@ export function ShiftForm({ sites, settings, initial, template, date, today, ret
     return {
       id: "", siteId: "", employer: "", location: "", date, startTime: "", endTime: "", breakMins: 0, rate: "",
       otEnabled: settings.overtimeEnabled, otThreshold: String(settings.overtimeThreshold), otMultiplier: String(settings.overtimeMultiplier),
-      status: date < today ? "COMPLETED" : "SCHEDULED", notes: "",
+      status: date < today ? "COMPLETED" : "SCHEDULED", autoStatus: true, notes: "",
       ...datesFor(date, undefined),
       paid: false, actualPayDate: "", actualAmount: "", payNotes: "",
     };
   });
   const [repeat, setRepeat] = useState(0);
+  const user = useCurrentUser();
+  const timeZone = user?.timeZone ?? appTimeZone();
+  const autoEnabled = user?.autoCompleteShifts ?? settings.autoCompleteShifts;
+  const now = useNow();
+  // Existing shifts: don't second-guess the saved status until you change the date, times or status.
+  const [statusTouched, setStatusTouched] = useState(!!initial);
   const set = (patch: Partial<FormState>) => setF((p) => ({ ...p, ...patch }));
 
   const siteFor = (employer: string, location: string) => sites.find((s) => s.employer === employer && s.location === location);
@@ -125,6 +135,39 @@ export function ShiftForm({ sites, settings, initial, template, date, today, ret
   const actual = toNum(f.actualAmount);
   const diff = f.paid && actual !== null && pay !== null ? round2(actual - pay) : null;
   const completed = f.status === "COMPLETED";
+  const hasTimes = isIsoDate(f.date) && /^\d\d:\d\d$/.test(f.startTime) && /^\d\d:\d\d$/.test(f.endTime);
+  const window_ = hasTimes ? shiftWindow(f.date, f.startTime, f.endTime, timeZone) : null;
+  const phase = window_ && now !== null ? shiftPhase(now, window_) : null;
+  const endLabel = window_
+    ? new Intl.DateTimeFormat("en-AU", { timeZone, weekday: "short", day: "2-digit", month: "2-digit", hour: "numeric", minute: "2-digit", hour12: true }).format(window_.endMs)
+    : "";
+
+  // New shifts follow the clock until you pick a status: a shift that has already ended starts as Completed.
+  useEffect(() => {
+    if (statusTouched || !autoEnabled || !phase) return;
+    setF((p) => {
+      const base: Status = p.status === "COMPLETED" && phase !== "finished" ? "SCHEDULED" : p.status;
+      const next = automaticStatus(base, phase);
+      return next === p.status && p.autoStatus ? p : { ...p, status: next, autoStatus: true };
+    });
+  }, [phase, statusTouched, autoEnabled]);
+
+  function statusHint() {
+    if (!autoEnabled) return "Automatic status is off in Settings.";
+    if (f.status === "CANCELLED") return "Cancelled shifts never change automatically.";
+    if (!f.autoStatus) return "You set this status yourself, so it won't change automatically.";
+    if (!phase) return "Status updates automatically from the shift times.";
+    if (phase === "upcoming") return `Shows Working now during the shift and becomes Completed at ${endLabel}.`;
+    if (phase === "in-progress") return `Becomes Completed automatically at ${endLabel}.`;
+    return f.status === "COMPLETED" ? "This shift has ended, so it's Completed." : "";
+  }
+
+  const pickStatus = (s: Status) => {
+    setStatusTouched(true);
+    // Choosing Scheduled/Confirmed for a shift that has already ended means "keep it like this".
+    const manual = (s === "SCHEDULED" || s === "CONFIRMED") && phase === "finished";
+    setF((p) => ({ ...p, status: s, autoStatus: !manual }));
+  };
   const expectedVsOfficial = isIsoDate(f.officialPayDate) && isIsoDate(f.expectedPayDate) ? diffDays(f.expectedPayDate, f.officialPayDate) : null;
   const paidVsOfficial = f.paid && isIsoDate(f.officialPayDate) && isIsoDate(f.actualPayDate) ? diffDays(f.actualPayDate, f.officialPayDate) : null;
 
@@ -133,6 +176,7 @@ export function ShiftForm({ sites, settings, initial, template, date, today, ret
       <input type="hidden" name="id" value={f.id} />
       <input type="hidden" name="siteId" value={f.siteId} />
       <input type="hidden" name="status" value={f.status} />
+      <input type="hidden" name="autoStatus" value={f.autoStatus ? "true" : ""} />
       <input type="hidden" name="paid" value={f.paid ? "true" : ""} />
       <input type="hidden" name="otEnabled" value={f.otEnabled ? "true" : ""} />
       <input type="hidden" name="returnTo" value={returnTo} />
@@ -218,15 +262,27 @@ export function ShiftForm({ sites, settings, initial, template, date, today, ret
           </div>
         )}
 
-        <Field label="Status">
+        <Field label="Status" hint={statusHint()}>
           <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Status">
             {STATUSES.map((s) => (
-              <button key={s} type="button" role="radio" aria-checked={f.status === s} onClick={() => set({ status: s })}
+              <button key={s} type="button" role="radio" aria-checked={f.status === s} onClick={() => pickStatus(s)}
                 className={`rounded-xl border py-3 text-sm font-semibold ${f.status === s ? "border-ink bg-ink text-white" : "border-slate-300 bg-white text-slate-700"}`}>
                 {STATUS_LABEL[s]}
               </button>
             ))}
           </div>
+          {phase && hasTimes && (
+            <div className="mt-2 flex items-center gap-2 text-sm">
+              <span className="text-slate-600">Right now:</span>
+              <LiveStatusPill shift={{ status: f.status, autoStatus: f.autoStatus, date: f.date, startTime: f.startTime, endTime: f.endTime, phase }} />
+            </div>
+          )}
+          {!f.autoStatus && autoEnabled && (
+            <button type="button" onClick={() => { setStatusTouched(false); setF((p) => ({ ...p, autoStatus: true })); }}
+              className="mt-2 text-sm font-semibold text-ink underline">
+              Turn automatic status back on
+            </button>
+          )}
         </Field>
 
         {isNew && (

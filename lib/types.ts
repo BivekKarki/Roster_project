@@ -34,6 +34,7 @@ export type ShiftDTO = {
   otThreshold: number | null;
   otMultiplier: number | null;
   status: Status;
+  autoStatus: boolean;
   notes: string;
   payPeriodStart: string | null;
   payPeriodEnd: string | null;
@@ -54,6 +55,8 @@ export type EnrichedShift = ShiftDTO & {
   payState: PayState | null;
   daysOverdue: number;
   daysUntilDue: number | null;
+  /** Where the shift is right now: before, during or after its hours */
+  phase: import("./shift-time").ShiftPhase;
   /** expected pay date minus official pay date */
   expectedLateDays: number | null;
   /** actual pay date minus official pay date (paid shifts only) */
@@ -95,6 +98,7 @@ export type SettingsDTO = {
   overtimeEnabled: boolean;
   overtimeThreshold: number;
   overtimeMultiplier: number;
+  autoCompleteShifts: boolean;
 };
 
 export type ActionState = { ok?: boolean; error?: string; message?: string } | undefined;

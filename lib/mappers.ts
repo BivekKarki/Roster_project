@@ -18,6 +18,7 @@ export const toShiftDTO = (s: Shift): ShiftDTO => ({
   otThreshold: dec(s.otThreshold),
   otMultiplier: dec(s.otMultiplier),
   status: s.status,
+  autoStatus: s.autoStatus,
   notes: s.notes,
   payPeriodStart: s.payPeriodStart ? dbToIso(s.payPeriodStart) : null,
   payPeriodEnd: s.payPeriodEnd ? dbToIso(s.payPeriodEnd) : null,
@@ -52,4 +53,5 @@ export const toSettingsDTO = (s: Settings): SettingsDTO => ({
   overtimeEnabled: s.overtimeEnabled,
   overtimeThreshold: dec(s.overtimeThreshold) ?? 8,
   overtimeMultiplier: dec(s.overtimeMultiplier) ?? 1.5,
+  autoCompleteShifts: s.autoCompleteShifts,
 });

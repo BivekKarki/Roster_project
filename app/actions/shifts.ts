@@ -8,6 +8,7 @@ import { addDays, diffDays, isoToDb, todayIso } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { plural } from "@/lib/format";
 import { toShiftDTO, toSiteDTO } from "@/lib/mappers";
+import { appTimeZone, automaticStatus, shiftPhase, shiftWindow } from "@/lib/shift-time";
 import { requireUserId } from "@/lib/session";
 import type { ActionState } from "@/lib/types";
 import { firstError, formToObject, payBatchSchema, shiftSchema } from "@/lib/validation";
@@ -48,6 +49,15 @@ export async function saveShift(_prev: ActionState, formData: FormData): Promise
         expectedPayDate: d.expectedPayDate ?? auto.expectedPayDate,
       };
 
+  // Automatic status: a Scheduled/Confirmed shift whose end time has already passed is saved as Completed,
+  // unless you picked the status yourself (autoStatus off) or turned the feature off in Settings.
+  const timeZone = appTimeZone();
+  const now = Date.now();
+  const statusFor = (date: string, requested: typeof d.status) =>
+    settings.autoCompleteShifts && d.autoStatus
+      ? automaticStatus(requested, shiftPhase(now, shiftWindow(date, d.startTime, d.endTime, timeZone)))
+      : requested;
+
   // Every shift stores its own snapshot of names, times, rate, overtime rule and pay dates.
   const data = {
     siteId: siteRow?.id ?? null,
@@ -60,7 +70,8 @@ export async function saveShift(_prev: ActionState, formData: FormData): Promise
     rate: d.rate,
     otThreshold: d.otEnabled ? (d.otThreshold ?? 8) : null,
     otMultiplier: d.otEnabled ? (d.otMultiplier ?? 1.5) : null,
-    status: d.status,
+    status: statusFor(d.date, d.status),
+    autoStatus: d.autoStatus,
     notes: d.notes,
     payPeriodStart: dbDate(pay.periodStart),
     payPeriodEnd: dbDate(pay.periodEnd),
@@ -92,7 +103,7 @@ export async function saveShift(_prev: ActionState, formData: FormData): Promise
         payPeriodEnd: dbDate(next.periodEnd),
         officialPayDate: dbDate(next.officialPayDate),
         expectedPayDate: isoToDb(addDays(next.expectedPayDate, manualShift)),
-        status: d.status === "COMPLETED" || d.status === "CANCELLED" ? "SCHEDULED" : d.status,
+        status: statusFor(date, d.status === "COMPLETED" || d.status === "CANCELLED" ? "SCHEDULED" : d.status),
         paid: false,
         actualPayDate: null,
         actualAmount: null,

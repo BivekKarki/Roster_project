@@ -38,6 +38,7 @@ export const shiftSchema = z.object({
   otThreshold: optionalMoney,
   otMultiplier: optionalMoney,
   status: z.enum(["SCHEDULED", "CONFIRMED", "COMPLETED", "CANCELLED"]),
+  autoStatus: checkbox,
   notes: text(500).optional().default(""),
   payPeriodStart: optionalIso,
   payPeriodEnd: optionalIso,
@@ -78,6 +79,7 @@ export const settingsSchema = z.object({
   overtimeEnabled: checkbox,
   overtimeThreshold: z.coerce.number().min(0).max(24),
   overtimeMultiplier: z.coerce.number().min(1).max(5),
+  autoCompleteShifts: checkbox,
 });
 
 export const verifyCodeSchema = z.object({

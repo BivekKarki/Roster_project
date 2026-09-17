@@ -99,6 +99,11 @@ Statuses, rates, overtime rules and payment records all carry across.
   - *Real pay date*: the supposed date plus the days payroll is usually late. With 7 days, that's Tue 06/10/2026. You can edit it per shift.
   - Employers without a pay cycle fall back to *shift date + "paid after" days*. The dashboard warns about them.
   - Each shift saves its pay period and both dates. Changing a pay rule offers to recalculate **unpaid** shifts only.
+- **Automatic shift status:** before a shift starts it shows *Scheduled* (or *Confirmed*), while it's on it shows *Working now*, and once the end time passes it's saved as *Completed*, so pay tracking starts straight away.
+  - Times use `APP_TIMEZONE` and daylight saving. Overnight shifts end the next morning.
+  - The database update runs at the start of each request (`lib/shiftStatusSync.ts`). The *Working now* label updates live in the browser without contacting the server, so it doesn't keep your login alive.
+  - Cancelled shifts never change. Picking Scheduled or Confirmed yourself for a shift that has ended keeps that status, and "Turn automatic status back on" undoes it.
+  - Settings → Shift status turns the whole feature off.
 - **Payment status** (always based on the *real* pay date):
   - 🔴 overdue after the expected date
   - 🟡 due within the "due soon" window (default 3 days)

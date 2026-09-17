@@ -32,6 +32,17 @@ export function GeneralSettingsForm({ settings }: { settings: SettingsDTO }) {
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4">
+        <h2 className="mb-2 font-bold">Shift status</h2>
+        <label className="flex items-start gap-3">
+          <input type="checkbox" name="autoCompleteShifts" defaultChecked={settings.autoCompleteShifts} className="mt-0.5 h-6 w-6 accent-ink" />
+          <span>
+            Update status automatically
+            <span className="block text-xs text-slate-500">Scheduled before the shift, Working now during it, Completed once it ends. Cancelled shifts and statuses you pick yourself aren&apos;t changed.</span>
+          </span>
+        </label>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-4">
         <h2 className="mb-2 font-bold">Overtime</h2>
         <label className="mb-3 flex items-center gap-3">
           <input type="checkbox" name="overtimeEnabled" checked={overtime} onChange={(e) => setOvertime(e.target.checked)} className="h-6 w-6 accent-ink" />

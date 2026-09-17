@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PAY_STATE_META } from "@/lib/calc";
 import { fmtDate, fmtDayDate, fmtHours, fmtTime, money } from "@/lib/format";
 import type { EnrichedShift } from "@/lib/types";
-import { StatusPill } from "./ui";
+import { LiveStatusPill } from "./LiveStatusPill";
 
 export function ShiftRow({ s, showDate = false, returnTo }: { s: EnrichedShift; showDate?: boolean; returnTo?: string }) {
   const cancelled = s.status === "CANCELLED";
@@ -21,7 +21,7 @@ export function ShiftRow({ s, showDate = false, returnTo }: { s: EnrichedShift; 
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <StatusPill status={s.status} />
+        <LiveStatusPill shift={s} />
         {s.payState && <span className="text-xs text-slate-700">{PAY_STATE_META[s.payState].icon} {PAY_STATE_META[s.payState].label}</span>}
         {s.notes && <span className="truncate text-xs text-slate-500">📝 {s.notes}</span>}
       </div>

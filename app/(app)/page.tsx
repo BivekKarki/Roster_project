@@ -5,7 +5,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { btn, Card, Page, PageHeader, SegmentedLinks, Stat } from "@/components/ui";
 import { periodRange, sum, summarize, summarizeByEmployer } from "@/lib/calc";
 import { dateRange, findShifts, getSettings } from "@/lib/data";
-import { dayName, isoToDb, todayIso } from "@/lib/dates";
+import { addDays, dayName, isoToDb, todayIso } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { fmtDate, fmtHours, fmtTime, money, plural } from "@/lib/format";
 import { intParam, one, type SearchParams } from "@/lib/params";
@@ -31,16 +31,20 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
   const [inRange, pastOpen, unpaid, noRateCount, todays, siteCount, user, noCycle] = await Promise.all([
     findShifts(userId, { date: dateRange(period.start, period.end) }, settings),
-    findShifts(userId, { date: { lt: isoToDb(today) }, status: { in: ["SCHEDULED", "CONFIRMED"] } }, settings),
+    findShifts(userId, { date: { lte: isoToDb(today) }, status: { in: ["SCHEDULED", "CONFIRMED"] } }, settings),
     findShifts(userId, { status: "COMPLETED", paid: false }, settings),
     prisma.shift.count({ where: { userId, rate: null, status: { not: "CANCELLED" } } }),
-    findShifts(userId, { date: isoToDb(today), status: { not: "CANCELLED" } }, settings),
+    // today's shifts plus last night's (an overnight shift can still be on this morning)
+    findShifts(userId, { date: dateRange(addDays(today, -1), today), status: { not: "CANCELLED" } }, settings),
     prisma.site.count({ where: { userId } }),
     prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
     employersWithoutPayCycle(userId),
   ]);
 
   const st = summarize(inRange);
+  const endedNotCompleted = pastOpen.filter((s) => s.phase === "finished"); // ended by the clock, not just by date
+  const workingNow = todays.filter((s) => s.phase === "in-progress");
+  const todaysOnly = todays.filter((s) => s.date === today);
   const employers = summarizeByEmployer(inRange);
   const overdue = unpaid.filter((s) => s.payState === "overdue");
   const soon = unpaid.filter((s) => s.payState === "soon");
@@ -64,14 +68,28 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           </Card>
         )}
 
-        {pastOpen.length > 0 && (
+        {workingNow.map((s) => (
+          <Link key={s.id} href={`/shifts/${s.id}?returnTo=/`} className="block rounded-2xl border-2 border-amber-400 bg-amber-50 p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+              <span className="relative flex h-2.5 w-2.5" aria-hidden>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-60 motion-reduce:hidden" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-600" />
+              </span>
+              Working now
+            </div>
+            <div className="mt-1 text-lg font-bold">{s.employer}, {s.location}</div>
+            <div className="num text-sm text-slate-700">{fmtTime(s.startTime)}–{fmtTime(s.endTime)}. Marked Completed automatically when it ends.</div>
+          </Link>
+        ))}
+
+        {!settings.autoCompleteShifts && endedNotCompleted.length > 0 && (
           <Card className="border-yellow-300 bg-yellow-50">
             <h2 className="font-bold">Did you work these?</h2>
             <p className="mb-2 text-sm text-slate-700">
-              {plural(pastOpen.length, "past shift")} still marked Scheduled or Confirmed. Mark them Completed to track payment.
+              {plural(endedNotCompleted.length, "past shift")} still marked Scheduled or Confirmed. Mark them Completed to track payment.
             </p>
             <div className="space-y-2">
-              {pastOpen.slice(0, 6).map((s) => (
+              {endedNotCompleted.slice(0, 6).map((s) => (
                 <form key={s.id} action={markCompleted} className="flex items-center gap-2 rounded-xl border border-yellow-200 bg-white p-2">
                   <input type="hidden" name="ids" value={s.id} />
                   <Link href={`/shifts/${s.id}?returnTo=/`} className="min-w-0 flex-1">
@@ -82,10 +100,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                 </form>
               ))}
             </div>
-            {pastOpen.length > 1 && (
+            {endedNotCompleted.length > 1 && (
               <form action={markCompleted} className="mt-2">
-                {pastOpen.map((s) => <input key={s.id} type="hidden" name="ids" value={s.id} />)}
-                <SubmitButton variant="go" pendingText="Updating…" className="w-full">Mark all {pastOpen.length} as Completed</SubmitButton>
+                {endedNotCompleted.map((s) => <input key={s.id} type="hidden" name="ids" value={s.id} />)}
+                <SubmitButton variant="go" pendingText="Updating…" className="w-full">Mark all {endedNotCompleted.length} as Completed</SubmitButton>
               </form>
             )}
           </Card>
@@ -163,9 +181,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
         <Card>
           <h2 className="mb-2 font-bold">Today</h2>
-          {todays.length === 0
+          {todaysOnly.length === 0
             ? <p className="text-sm text-slate-500">No shifts today.</p>
-            : <div className="space-y-2">{todays.map((s) => <ShiftRow key={s.id} s={s} returnTo="/" />)}</div>}
+            : <div className="space-y-2">{todaysOnly.map((s) => <ShiftRow key={s.id} s={s} returnTo="/" />)}</div>}
         </Card>
       </Page>
     </>

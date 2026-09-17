@@ -63,7 +63,7 @@ test("lump sum split totals exactly", () => {
 test("overdue uses the expected (late) date, and lateness vs official is reported", () => {
   const shift: ShiftDTO = {
     id: "1", siteId: null, employer: "Adairs", location: "Bondi", date: "2026-09-14", startTime: "07:00", endTime: "09:00",
-    breakMins: 0, rate: 25, otThreshold: null, otMultiplier: null, status: "COMPLETED", notes: "",
+    breakMins: 0, rate: 25, otThreshold: null, otMultiplier: null, status: "COMPLETED", autoStatus: true, notes: "",
     payPeriodStart: "2026-09-07", payPeriodEnd: "2026-09-20", officialPayDate: "2026-09-22", expectedPayDate: "2026-09-29",
     paid: false, actualPayDate: null, actualAmount: null, payNotes: "",
   };
