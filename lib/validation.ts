@@ -105,7 +105,6 @@ export const payCycleSchema = z.object({
   payWeekday: z.coerce.number().int().min(0, "Choose a pay day").max(6, "Choose a pay day"),
   payLateDays: z.coerce.number().int().min(0).max(60),
   recalcUnpaid: checkbox,
-  alignDashboard: checkbox,
 });
 
 export const payBatchSchema = z.object({

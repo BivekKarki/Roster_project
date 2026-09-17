@@ -28,7 +28,7 @@ export async function applyPayCycleToAll(_prev: ActionState, formData: FormData)
   const userId = await requireUserId();
   const parsed = payCycleSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { error: firstError(parsed.error) };
-  const { payPeriodStart, payPeriodDays, payWeekday, payLateDays, recalcUnpaid, alignDashboard } = parsed.data;
+  const { payPeriodStart, payPeriodDays, payWeekday, payLateDays, recalcUnpaid } = parsed.data;
   const cycle = { payPeriodStart, payPeriodDays, payWeekday, payLateDays, payDelayDays: 14 };
 
   const result = await prisma.$transaction(async (tx) => {
@@ -40,9 +40,8 @@ export async function applyPayCycleToAll(_prev: ActionState, formData: FormData)
       },
     });
 
-    if (alignDashboard) {
-      await tx.settings.updateMany({ where: { userId }, data: { fortnightStart: isoToDb(payPeriodStart) } });
-    }
+    // Kept in sync as the fallback for when no employer has a pay cycle.
+    await tx.settings.updateMany({ where: { userId }, data: { fortnightStart: isoToDb(payPeriodStart) } });
 
     let recalculated = 0;
     if (recalcUnpaid) {

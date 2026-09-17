@@ -142,6 +142,9 @@ export function SiteForm({ site, employers, defaultDelay, defaultCycle, today, s
               </Field>
             </div>
             <input type="hidden" name="payDelayDays" value={f.payDelayDays} />
+            <p className="mb-3 text-xs text-slate-500">
+              The dashboard fortnight follows the pay cycle most of your employers use. To change every employer at once, use Settings → Pay cycle for all employers.
+            </p>
           </>
         ) : (
           <>

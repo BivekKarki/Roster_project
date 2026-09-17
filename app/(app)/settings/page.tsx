@@ -69,6 +69,11 @@ export default async function SettingsPage() {
                 {noCycle.length === 1 ? "has" : "have"} no pay cycle yet, so pay dates are just the shift date plus {noCycle[0].payDelayDays} days.
               </div>
             )}
+            {cycle.otherEmployers.length > 0 && (
+              <div className="mb-3 rounded-xl border border-yellow-300 bg-yellow-50 p-3 text-sm">
+                Your employers use different pay cycles. <b>{cycle.otherEmployers.join("; ")}</b> {cycle.otherEmployers.length === 1 ? "doesn't" : "don't"} match the others. Applying below makes them all the same.
+              </div>
+            )}
             <PayCycleForm
               initial={{ payPeriodStart: cycle.payPeriodStart, payPeriodDays: cycle.payPeriodDays, payWeekday: cycle.payWeekday, payLateDays: cycle.payLateDays }}
               today={todayIso()}
@@ -78,7 +83,7 @@ export default async function SettingsPage() {
           </section>
         )}
 
-        <GeneralSettingsForm settings={settings} />
+        <GeneralSettingsForm settings={settings} payCycleStart={cycle.fromEmployers ? cycle.payPeriodStart : null} />
 
         <Card>
           <h2 className="font-bold">Export and backup</h2>

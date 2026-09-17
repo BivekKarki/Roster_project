@@ -95,3 +95,24 @@ test("default pay cycle matches the user's payroll", async () => {
   assert.equal(pay.officialPayDate, "2026-09-29");
   assert.equal(pay.expectedPayDate, "2026-10-06");
 });
+
+test("dashboard fortnight follows the pay cycle most employers use; ties go to the latest change", async () => {
+  const { pickPayCycle, periodRange } = await import("./calc");
+  const c = (name: string, start: string, updatedAtMs: number) => ({ name, payPeriodStart: start, payPeriodDays: 14, payWeekday: 2, payLateDays: 7, updatedAtMs });
+
+  const all7 = pickPayCycle([c("Adairs", "2026-09-07", 1), c("Aldi", "2026-09-07", 2), c("Officeworks", "2026-09-07", 3)]);
+  assert.equal(periodRange("fortnight", 0, { fortnightStart: all7!.cycle.payPeriodStart }, "2026-09-17").label, "07/09/2026 to 20/09/2026");
+  assert.deepEqual(all7!.otherEmployers, []);
+
+  const mixed = pickPayCycle([c("Adairs", "2026-09-14", 9), c("Aldi", "2026-09-07", 2), c("Officeworks", "2026-09-07", 3)]);
+  assert.equal(mixed!.cycle.payPeriodStart, "2026-09-07");
+  assert.deepEqual(mixed!.otherEmployers, ["Adairs"]);
+
+  const tie = pickPayCycle([c("Adairs", "2026-09-14", 5), c("Aldi", "2026-09-07", 9)]);
+  assert.equal(tie!.cycle.payPeriodStart, "2026-09-07", "most recently changed wins a tie");
+
+  const equivalent = pickPayCycle([c("Adairs", "2026-09-07", 1), c("Aldi", "2026-09-21", 2), c("Officeworks", "2026-09-14", 3)]);
+  assert.deepEqual(equivalent!.employers.sort(), ["Adairs", "Aldi"], "07/09 and 21/09 give the same fortnights");
+
+  assert.equal(pickPayCycle([]), null);
+});

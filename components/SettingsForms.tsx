@@ -9,7 +9,11 @@ import type { SettingsDTO } from "@/lib/types";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
 
-export function GeneralSettingsForm({ settings }: { settings: SettingsDTO }) {
+export function GeneralSettingsForm({ settings, payCycleStart }: {
+  settings: SettingsDTO;
+  /** Start of your employers' pay cycle; when set, the dashboard fortnight follows it */
+  payCycleStart: string | null;
+}) {
   const [state, action] = useActionState(updateSettings, undefined);
   const [fortnightStart, setFortnightStart] = useState(settings.fortnightStart);
   const [overtime, setOvertime] = useState(settings.overtimeEnabled);
@@ -26,9 +30,19 @@ export function GeneralSettingsForm({ settings }: { settings: SettingsDTO }) {
             <input id="dueSoonDays" name="dueSoonDays" type="number" inputMode="numeric" min="0" max="60" defaultValue={settings.dueSoonDays} className="input" />
           </Field>
         </div>
-        <Field label="A fortnight starts on" htmlFor="fortnightStart" hint={`${dayName(fortnightStart)} ${fmtDate(fortnightStart)}. Every fortnight is counted from this date.`}>
-          <input id="fortnightStart" name="fortnightStart" type="date" required value={fortnightStart} onChange={(e) => setFortnightStart(e.target.value)} className="input" />
-        </Field>
+        {payCycleStart ? (
+          <div className="rounded-xl bg-slate-50 p-3 text-sm">
+            <input type="hidden" name="fortnightStart" value={fortnightStart} />
+            <div className="font-medium">Dashboard fortnight</div>
+            <p className="text-slate-600">
+              Follows your pay cycle, starting {dayName(payCycleStart)} {fmtDate(payCycleStart)}. Change it in <a href="#pay-cycle" className="font-semibold text-ink underline">Pay cycle for all employers</a>.
+            </p>
+          </div>
+        ) : (
+          <Field label="A fortnight starts on" htmlFor="fortnightStart" hint={`${dayName(fortnightStart)} ${fmtDate(fortnightStart)}. Every fortnight is counted from this date.`}>
+            <input id="fortnightStart" name="fortnightStart" type="date" required value={fortnightStart} onChange={(e) => setFortnightStart(e.target.value)} className="input" />
+          </Field>
+        )}
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4">

@@ -1,26 +1,28 @@
 import "server-only";
-import { DEFAULT_PAY_CYCLE } from "./calc";
+import { DEFAULT_PAY_CYCLE, pickPayCycle } from "./calc";
 import { dbToIso } from "./dates";
 import { prisma } from "./db";
 
 /**
- * The pay cycle to suggest: the one most of your employers already use, otherwise the default
- * (fortnights from 14/09/2026, Tuesday after, 7 days late).
+ * Your pay cycle, taken from your employers: the one most of them use (on a tie, the one you
+ * changed last). Falls back to the default when no employer has a pay cycle yet.
+ * The dashboard fortnight follows this, so changing a pay cycle moves the fortnight too.
  */
 export async function suggestedPayCycle(userId: string) {
   const sites = await prisma.site.findMany({
     where: { userId, payPeriodStart: { not: null }, payWeekday: { not: null } },
-    select: { payPeriodStart: true, payPeriodDays: true, payWeekday: true, payLateDays: true },
+    select: { employer: true, location: true, payPeriodStart: true, payPeriodDays: true, payWeekday: true, payLateDays: true, updatedAt: true },
   });
-  if (sites.length === 0) return { ...DEFAULT_PAY_CYCLE, fromEmployers: false };
-  const counts = new Map<string, { n: number; cycle: typeof DEFAULT_PAY_CYCLE }>();
-  for (const s of sites) {
-    const cycle = { payPeriodStart: dbToIso(s.payPeriodStart!), payPeriodDays: s.payPeriodDays, payWeekday: s.payWeekday!, payLateDays: s.payLateDays };
-    const key = JSON.stringify(cycle);
-    counts.set(key, { n: (counts.get(key)?.n ?? 0) + 1, cycle });
-  }
-  const best = [...counts.values()].sort((a, b) => b.n - a.n)[0];
-  return { ...best.cycle, fromEmployers: true };
+  const picked = pickPayCycle(sites.map((s) => ({
+    name: `${s.employer}, ${s.location}`,
+    payPeriodStart: dbToIso(s.payPeriodStart!),
+    payPeriodDays: s.payPeriodDays,
+    payWeekday: s.payWeekday!,
+    payLateDays: s.payLateDays,
+    updatedAtMs: s.updatedAt.getTime(),
+  })));
+  if (!picked) return { ...DEFAULT_PAY_CYCLE, fromEmployers: false, employers: [] as string[], otherEmployers: [] as string[] };
+  return { ...picked.cycle, fromEmployers: true, employers: picked.employers, otherEmployers: picked.otherEmployers };
 }
 
 /** Employers that still use "shift date + N days" instead of a pay cycle. */

@@ -9,7 +9,7 @@ import { addDays, dayName, isoToDb, todayIso } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { fmtDate, fmtHours, fmtTime, money, plural } from "@/lib/format";
 import { intParam, one, type SearchParams } from "@/lib/params";
-import { employersWithoutPayCycle } from "@/lib/payCycleDefaults";
+import { employersWithoutPayCycle, suggestedPayCycle } from "@/lib/payCycleDefaults";
 import { requireUserId } from "@/lib/session";
 import type { PeriodKind } from "@/lib/types";
 
@@ -26,8 +26,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const kind = (KINDS.some((k) => k.value === one(sp.period)) ? one(sp.period) : "fortnight") as PeriodKind;
   const offset = intParam(sp.offset);
   const today = todayIso();
-  const settings = await getSettings(userId);
-  const period = periodRange(kind, offset, settings, today);
+  const [settings, payCycle] = await Promise.all([getSettings(userId), suggestedPayCycle(userId)]);
+  // The fortnight follows your pay cycle, so changing a pay cycle moves the dashboard too.
+  const fortnightStart = payCycle.fromEmployers ? payCycle.payPeriodStart : settings.fortnightStart;
+  const period = periodRange(kind, offset, { fortnightStart }, today);
 
   const [inRange, pastOpen, unpaid, noRateCount, todays, siteCount, user, noCycle] = await Promise.all([
     findShifts(userId, { date: dateRange(period.start, period.end) }, settings),
@@ -158,6 +160,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             <Stat label="Completed shifts" value={st.completedCount} />
             <Stat label="Not yet worked" value={money(st.upcoming)} />
           </div>
+          {kind === "fortnight" && payCycle.fromEmployers && payCycle.otherEmployers.length > 0 && (
+            <p className="mt-2 text-xs text-slate-600">
+              This fortnight follows the pay cycle of {payCycle.employers.join("; ")}. {payCycle.otherEmployers.join("; ")} {payCycle.otherEmployers.length === 1 ? "uses" : "use"} a different one.{" "}
+              <Link href="/settings#pay-cycle" className="font-semibold text-ink underline">Make them all the same</Link>
+            </p>
+          )}
           {st.missingRate > 0 && <p className="mt-2 text-xs text-orange-700">{plural(st.missingRate, "shift")} in this period {st.missingRate === 1 ? "has" : "have"} no rate, so totals are incomplete.</p>}
         </Card>
 

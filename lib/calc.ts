@@ -42,6 +42,48 @@ export function payDatesFor(shiftDate: string, cycle: PayCycle | null | undefine
   return { periodStart, periodEnd, officialPayDate, expectedPayDate };
 }
 
+export type PayCycleCandidate = {
+  name: string;
+  payPeriodStart: string;
+  payPeriodDays: number;
+  payWeekday: number;
+  payLateDays: number;
+  /** when the employer was last saved (ms) */
+  updatedAtMs: number;
+};
+
+/**
+ * The pay cycle to use for the dashboard fortnight and as the suggestion for new employers:
+ * the one most employers share; on a tie, the one changed most recently.
+ * Two cycles that produce the same fortnights (e.g. starting 07/09 or 21/09) count as the same.
+ */
+export function pickPayCycle(candidates: PayCycleCandidate[]) {
+  if (candidates.length === 0) return null;
+  const normalise = (c: PayCycleCandidate) => {
+    // Move the start to the earliest equivalent date on/after 2000-01-03 so equivalent anchors match.
+    const offset = ((diffDays(c.payPeriodStart, "2000-01-03") % c.payPeriodDays) + c.payPeriodDays) % c.payPeriodDays;
+    return `${c.payPeriodDays}|${offset}|${c.payWeekday}|${c.payLateDays}`;
+  };
+  const groups = new Map<string, { members: PayCycleCandidate[]; latest: PayCycleCandidate }>();
+  for (const c of candidates) {
+    const key = normalise(c);
+    const g = groups.get(key);
+    if (!g) groups.set(key, { members: [c], latest: c });
+    else {
+      g.members.push(c);
+      if (c.updatedAtMs > g.latest.updatedAtMs) g.latest = c;
+    }
+  }
+  const ranked = [...groups.values()].sort((a, b) => b.members.length - a.members.length || b.latest.updatedAtMs - a.latest.updatedAtMs);
+  const winner = ranked[0];
+  const { payPeriodStart, payPeriodDays, payWeekday, payLateDays } = winner.latest;
+  return {
+    cycle: { payPeriodStart, payPeriodDays, payWeekday, payLateDays },
+    employers: winner.members.map((m) => m.name),
+    otherEmployers: ranked.slice(1).flatMap((g) => g.members.map((m) => m.name)),
+  };
+}
+
 /** Paid hours between two "HH:MM" times minus an unpaid break. Handles overnight shifts. */
 export function calcHours(start: string, end: string, breakMins: number) {
   if (!start || !end) return 0;

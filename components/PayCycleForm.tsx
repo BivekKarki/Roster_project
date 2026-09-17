@@ -67,10 +67,7 @@ export function PayCycleForm({ initial, today, employerCount, unpaidCount }: {
         <input type="checkbox" name="recalcUnpaid" defaultChecked className="mt-0.5 h-6 w-6 accent-ink" />
         <span>Recalculate pay dates for your {plural(unpaidCount, "unpaid shift")}. Paid shifts are never changed.</span>
       </label>
-      <label className="flex items-start gap-3 text-sm">
-        <input type="checkbox" name="alignDashboard" defaultChecked className="mt-0.5 h-6 w-6 accent-ink" />
-        <span>Make the dashboard fortnight match this pay period.</span>
-      </label>
+      <p className="text-xs text-slate-500">The dashboard fortnight follows this pay cycle automatically.</p>
       {state?.error && <Alert tone="error">{state.error}</Alert>}
       {state?.ok && <Alert tone="ok">{state.message}</Alert>}
       <SubmitButton className="w-full" pendingText="Updating…">Apply to all {plural(employerCount, "employer")}</SubmitButton>
