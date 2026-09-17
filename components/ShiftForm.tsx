@@ -251,23 +251,23 @@ export function ShiftForm({ sites, settings, initial, template, date, today, ret
               <dd className="font-semibold">{fmtDate(f.payPeriodStart)} to {fmtDate(f.payPeriodEnd)}</dd>
             </div>
             <div className="rounded-xl bg-slate-50 p-3">
-              <dt className="text-xs text-slate-500">Official pay date</dt>
+              <dt className="text-xs text-slate-500">Supposed pay date</dt>
               <dd className="font-semibold">{fmtDayDate(f.officialPayDate)}</dd>
             </div>
             <div className="rounded-xl bg-yellow-50 p-3">
-              <dt className="text-xs text-slate-500">Expected pay date</dt>
+              <dt className="text-xs text-slate-500">Real pay date</dt>
               <dd className="font-semibold">{fmtDayDate(f.expectedPayDate)}</dd>
-              {expectedVsOfficial !== null && expectedVsOfficial !== 0 && <dd className="text-xs text-slate-600">{lateness(expectedVsOfficial)}</dd>}
+              {expectedVsOfficial !== null && expectedVsOfficial !== 0 && <dd className="text-xs text-slate-600">{lateness(expectedVsOfficial)} (payroll)</dd>}
             </div>
           </dl>
         ) : (
           <p className="mb-3 text-xs text-slate-500">
             {currentSite && !hasPayCycle(currentSite)
-              ? "This employer has no pay cycle yet, so the expected date is the shift date plus its usual delay. Set a pay cycle in Settings to get the official pay date."
+              ? "This employer has no pay cycle yet, so the pay date is just the shift date plus a number of days. Set up the pay cycle in Settings to get the supposed and real pay dates."
               : "Choose an employer to work out the pay dates."}
           </p>
         )}
-        <Field label="Expected pay date (you can change it)" htmlFor="expectedPayDate" hint={fmtDayDate(f.expectedPayDate)}>
+        <Field label="Real pay date (change it if payroll tells you a different day)" htmlFor="expectedPayDate" hint={fmtDayDate(f.expectedPayDate)}>
           <input id="expectedPayDate" name="expectedPayDate" type="date" value={f.expectedPayDate} onChange={(e) => set({ expectedPayDate: e.target.value })} className="input" />
         </Field>
       </section>
@@ -291,7 +291,7 @@ export function ShiftForm({ sites, settings, initial, template, date, today, ret
           </div>
         </Field>
         <div className={`grid grid-cols-2 gap-2 ${f.paid ? "" : "hidden"}`}>
-          <Field label="Paid on" htmlFor="actualPayDate" hint={paidVsOfficial !== null ? `${fmtDayDate(f.actualPayDate)}, ${lateness(paidVsOfficial)}` : fmtDayDate(f.actualPayDate)}>
+          <Field label="Received on" htmlFor="actualPayDate" hint={paidVsOfficial !== null ? `${fmtDayDate(f.actualPayDate)}, ${lateness(paidVsOfficial)}` : fmtDayDate(f.actualPayDate)}>
             <input id="actualPayDate" name="actualPayDate" type="date" value={f.actualPayDate} onChange={(e) => set({ actualPayDate: e.target.value })} className="input" />
           </Field>
           <Field label="Received ($)" htmlFor="actualAmount" hint={diff === null ? "" : diff === 0 ? "Matches expected" : `Difference: ${signedMoney(diff)}`}>

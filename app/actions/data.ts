@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { parseBackup } from "@/lib/backup";
+import { DEFAULT_FORTNIGHT_START } from "@/lib/calc";
 import { isoToDb } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { plural } from "@/lib/format";
@@ -64,7 +65,7 @@ export async function importBackup(_prev: ActionState, formData: FormData): Prom
       await tx.settings.upsert({
         where: { userId },
         update: data,
-        create: { userId, ...rest, fortnightStart: isoToDb(fortnightStart ?? "2026-09-07") },
+        create: { userId, ...rest, fortnightStart: isoToDb(fortnightStart ?? DEFAULT_FORTNIGHT_START) },
       });
     }
   }, { timeout: 30_000 });

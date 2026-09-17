@@ -97,6 +97,15 @@ export const autoLogoutSchema = z.object({
   idleTimeoutMinutes: z.coerce.number().int().refine((n) => [15, 30, 60, 240, 1440, 0].includes(n), "Choose an option"),
 });
 
+export const payCycleSchema = z.object({
+  payPeriodStart: isoSchema,
+  payPeriodDays: z.coerce.number().int().refine((n) => n === 7 || n === 14, "Choose weekly or fortnightly"),
+  payWeekday: z.coerce.number().int().min(0, "Choose a pay day").max(6, "Choose a pay day"),
+  payLateDays: z.coerce.number().int().min(0).max(60),
+  recalcUnpaid: checkbox,
+  alignDashboard: checkbox,
+});
+
 export const payBatchSchema = z.object({
   ids: z.array(z.string().min(1)).min(1, "Select at least one shift").max(500),
   payDate: isoSchema,

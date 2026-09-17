@@ -65,10 +65,10 @@ export function UnpaidList({ unpaid, paid, today, grouped }: { unpaid: EnrichedS
             return (
               <section key={g.key} className={`space-y-2 rounded-2xl border p-3 ${meta.card}`}>
                 <div className="num">
-                  <div className="font-bold">{meta.icon} Expected {fmtDayDate(g.expected)}</div>
+                  <div className="font-bold">{meta.icon} Real pay date {fmtDayDate(g.expected)}</div>
                   {g.official && (
                     <div className="text-sm text-slate-700">
-                      Official {fmtDayDate(g.official)}
+                      Supposed pay date {fmtDayDate(g.official)}
                       {g.expected && g.official !== g.expected ? ` (${lateness(diffDays(g.expected, g.official))})` : ""}
                     </div>
                   )}
@@ -124,10 +124,10 @@ function ShiftCard({ s, checked, onToggle, onPay }: { s: EnrichedShift; checked:
             <div><dt className="inline text-slate-500">Shift: </dt><dd className="inline">{fmtDate(s.date)}</dd></div>
             <div><dt className="inline text-slate-500">Hours: </dt><dd className="inline">{round2(s.hours)}</dd></div>
             {s.officialPayDate && (
-              <div className="col-span-2"><dt className="inline text-slate-500">Official pay: </dt><dd className="inline">{fmtDayDate(s.officialPayDate)}</dd></div>
+              <div className="col-span-2"><dt className="inline text-slate-500">Supposed pay: </dt><dd className="inline">{fmtDayDate(s.officialPayDate)}</dd></div>
             )}
             <div className="col-span-2">
-              <dt className="inline text-slate-500">Expected pay: </dt>
+              <dt className="inline text-slate-500">Real pay: </dt>
               <dd className="inline font-semibold">{fmtDayDate(s.expectedPayDate)}</dd>
               {s.expectedLateDays ? <dd className="inline text-slate-600"> ({lateness(s.expectedLateDays)})</dd> : null}
             </div>
@@ -196,7 +196,7 @@ function PaySheet({ targets, today, onClose, onDone }: {
             {targets.length > 10 && <div className="text-slate-500">and {targets.length - 10} more</div>}
             <div className="flex justify-between border-t border-slate-200 pt-1 font-bold"><span>Expected</span><span>{money(total)}</span></div>
           </div>
-          <Field label="Payment date" htmlFor="payDate" hint={vsOfficial !== null ? `${fmtDayDate(date)}, ${lateness(vsOfficial)} vs official ${fmtDayDate(officials[0])}` : fmtDayDate(date)}>
+          <Field label="Payment date" htmlFor="payDate" hint={vsOfficial !== null ? `${fmtDayDate(date)}, ${lateness(vsOfficial)} vs supposed ${fmtDayDate(officials[0])}` : fmtDayDate(date)}>
             <input id="payDate" name="payDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="input" />
           </Field>
           <Field label={single ? "Amount received ($)" : "Total received ($)"} htmlFor="amount"

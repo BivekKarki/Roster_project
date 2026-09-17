@@ -25,8 +25,8 @@ const SITES = [
   { employer: "Aldi", location: "Edgecliff", defaultStart: "09:00", defaultEnd: "11:00" },
   { employer: "Officeworks", location: "Northrocks", defaultStart: "18:00", defaultEnd: "21:00" },
 ];
-// Fortnights from Mon 07/09/2026, officially paid the Tuesday after (22/09), usually 7 days late (29/09)
-const CYCLE = { payPeriodStart: day("2026-09-07"), payPeriodDays: 14, payWeekday: 2, payLateDays: 7, payDelayDays: 14 };
+// Fortnights from Mon 14/09/2026 (14/09–27/09): supposed pay Tue 29/09, real pay one week later Tue 06/10
+const CYCLE = { payPeriodStart: day("2026-09-14"), payPeriodDays: 14, payWeekday: 2, payLateDays: 7, payDelayDays: 14 };
 
 async function main() {
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -40,7 +40,7 @@ async function main() {
       name: "Demo",
       passwordHash: await bcrypt.hash(password, 12),
       emailVerifiedAt: new Date(),
-      settings: { create: { fortnightStart: day("2026-09-07") } },
+      settings: { create: { fortnightStart: day("2026-09-14") } },
     },
   });
   for (const s of SITES) {
@@ -54,8 +54,8 @@ async function main() {
           create: {
             userId: user.id, employer: s.employer, location: s.location, date: day("2026-09-14"),
             startTime: s.defaultStart, endTime: s.defaultEnd, status: "SCHEDULED",
-            payPeriodStart: day("2026-09-07"), payPeriodEnd: day("2026-09-20"),
-            officialPayDate: day("2026-09-22"), expectedPayDate: day("2026-09-29"),
+            payPeriodStart: day("2026-09-14"), payPeriodEnd: day("2026-09-27"),
+            officialPayDate: day("2026-09-29"), expectedPayDate: day("2026-10-06"),
           },
         },
       },

@@ -44,7 +44,7 @@ export default async function UnpaidPage({ searchParams }: { searchParams: Searc
 
   return (
     <>
-      <PageHeader title="Unpaid shifts" subtitle="Sorted by expected payment date" />
+      <PageHeader title="Unpaid shifts" subtitle="Sorted by real pay date" />
       <Page>
         <Card>
           <div className="text-sm text-slate-600">Total unpaid{employer ? ` for ${employer}` : ""}</div>

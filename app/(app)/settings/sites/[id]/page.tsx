@@ -10,13 +10,14 @@ import { todayIso } from "@/lib/dates";
 import { plural } from "@/lib/format";
 import { requireUserId } from "@/lib/session";
 import { siteShiftCounts } from "@/lib/siteCounts";
+import { suggestedPayCycle } from "@/lib/payCycleDefaults";
 
 export const metadata: Metadata = { title: "Edit employer" };
 
 export default async function EditSitePage({ params }: { params: Promise<{ id: string }> }) {
   const userId = await requireUserId();
   const { id } = await params;
-  const [sites, settings, counts] = await Promise.all([getSites(userId), getSettings(userId), siteShiftCounts(userId)]);
+  const [sites, settings, counts, cycle] = await Promise.all([getSites(userId), getSettings(userId), siteShiftCounts(userId), suggestedPayCycle(userId)]);
   const site = sites.find((s) => s.id === id);
   if (!site) notFound();
   const shiftCount = counts.shiftCounts[`${site.employer}|${site.location}`] ?? 0;
@@ -26,7 +27,7 @@ export default async function EditSitePage({ params }: { params: Promise<{ id: s
       <PageHeader title="Edit employer" subtitle={`${site.employer}, ${site.location}`}
         action={<Link href="/settings" className="rounded-lg bg-white/15 px-3 py-2 text-sm font-semibold">Cancel</Link>} />
       <Page>
-        <SiteForm site={site} employers={[...new Set(sites.map((s) => s.employer))]} defaultDelay={settings.payDelayDays} today={todayIso()} {...counts} />
+        <SiteForm site={site} employers={[...new Set(sites.map((s) => s.employer))]} defaultDelay={settings.payDelayDays} defaultCycle={cycle} today={todayIso()} {...counts} />
         <form action={deleteSite} className="space-y-1">
           <input type="hidden" name="id" value={site.id} />
           <ConfirmSubmit label="Remove this employer" confirmLabel="Tap again to remove" className="w-full" />

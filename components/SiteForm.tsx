@@ -6,11 +6,15 @@ import { payDatesFor } from "@/lib/calc";
 import { dayName, isIsoDate } from "@/lib/dates";
 import { fmtDate, fmtDayDate, fmtTime, money, plural } from "@/lib/format";
 import { FREQUENCIES, FREQUENCY_LABEL, WEEKDAYS, type Frequency, type SiteDTO } from "@/lib/types";
+
+export type PayCycleDefaults = { payPeriodStart: string; payPeriodDays: number; payWeekday: number; payLateDays: number };
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
 
-export function SiteForm({ site, employers, defaultDelay, today, shiftCounts, blankRateCounts, unpaidCounts }: {
+export function SiteForm({ site, employers, defaultDelay, defaultCycle, today, shiftCounts, blankRateCounts, unpaidCounts }: {
   site: SiteDTO | null;
+  /** Pay cycle suggested for a new employer (your other employers' cycle, or the default) */
+  defaultCycle: PayCycleDefaults;
   employers: string[];
   defaultDelay: number;
   today: string;
@@ -31,10 +35,10 @@ export function SiteForm({ site, employers, defaultDelay, today, shiftCounts, bl
     payFrequency: (site?.payFrequency ?? "FORTNIGHTLY") as Frequency,
     payDelayDays: String(site?.payDelayDays ?? defaultDelay),
     useCycle: site ? site.payPeriodStart !== null && site.payWeekday !== null : true,
-    payPeriodStart: site?.payPeriodStart ?? "2026-09-07",
-    payPeriodDays: site?.payPeriodDays ?? 14,
-    payWeekday: site?.payWeekday ?? 2,
-    payLateDays: String(site?.payLateDays ?? 0),
+    payPeriodStart: site?.payPeriodStart ?? defaultCycle.payPeriodStart,
+    payPeriodDays: site?.payPeriodStart ? site.payPeriodDays : defaultCycle.payPeriodDays,
+    payWeekday: site?.payWeekday ?? defaultCycle.payWeekday,
+    payLateDays: String(site?.payPeriodStart ? site.payLateDays : defaultCycle.payLateDays),
     notes: site?.notes ?? "",
   });
   const [rename, setRename] = useState(true);
@@ -114,7 +118,7 @@ export function SiteForm({ site, employers, defaultDelay, today, shiftCounts, bl
 
         {f.useCycle ? (
           <>
-            <Field label="A pay period starts on" htmlFor="payPeriodStartInput" hint={isIsoDate(f.payPeriodStart) ? `${dayName(f.payPeriodStart)} ${fmtDate(f.payPeriodStart)}. Any first day of a pay period works.` : ""}>
+            <Field label="A pay period starts on" htmlFor="payPeriodStartInput" hint={isIsoDate(f.payPeriodStart) ? `${dayName(f.payPeriodStart)} ${fmtDate(f.payPeriodStart)}. Use the first day of any pay period, e.g. 14/09/2026.` : ""}>
               <input id="payPeriodStartInput" type="date" required value={f.payPeriodStart} onChange={(e) => set({ payPeriodStart: e.target.value })} className="input" />
             </Field>
             <Field label="Pay period">
@@ -128,12 +132,12 @@ export function SiteForm({ site, employers, defaultDelay, today, shiftCounts, bl
               </div>
             </Field>
             <div className="grid grid-cols-2 gap-2">
-              <Field label="Official pay day" htmlFor="payWeekdaySelect" hint="The first one after the period ends">
+              <Field label="Supposed pay day" htmlFor="payWeekdaySelect" hint="The first one after the period ends">
                 <select id="payWeekdaySelect" value={f.payWeekday} onChange={(e) => set({ payWeekday: Number(e.target.value) })} className="input">
                   {WEEKDAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
                 </select>
               </Field>
-              <Field label="Usually late by (days)" htmlFor="payLateDays" hint="0 if they pay on time">
+              <Field label="Payroll pays late by (days)" htmlFor="payLateDays" hint="7 = one week later. 0 if on time">
                 <input id="payLateDays" name="payLateDays" type="number" inputMode="numeric" min="0" max="60" required value={f.payLateDays} onChange={(e) => set({ payLateDays: e.target.value })} className="input" />
               </Field>
             </div>
@@ -141,7 +145,7 @@ export function SiteForm({ site, employers, defaultDelay, today, shiftCounts, bl
           </>
         ) : (
           <>
-            <Field label="Paid after (days)" htmlFor="payDelayDays" hint="Expected pay date = shift date + this many days">
+            <Field label="Paid after (days)" htmlFor="payDelayDays" hint="Pay date = shift date + this many days">
               <input id="payDelayDays" name="payDelayDays" type="number" inputMode="numeric" min="0" max="120" required value={f.payDelayDays} onChange={(e) => set({ payDelayDays: e.target.value })} className="input" />
             </Field>
             <input type="hidden" name="payLateDays" value={f.payLateDays} />
@@ -163,11 +167,11 @@ export function SiteForm({ site, employers, defaultDelay, today, shiftCounts, bl
           {preview.officialPayDate ? (
             <>
               <div>Pay period <b>{fmtDate(preview.periodStart)} to {fmtDate(preview.periodEnd)}</b></div>
-              <div>Official pay date <b>{fmtDayDate(preview.officialPayDate)}</b></div>
-              <div>Expected pay date <b>{fmtDayDate(preview.expectedPayDate)}</b></div>
+              <div>Supposed pay date <b>{fmtDayDate(preview.officialPayDate)}</b></div>
+              <div>Real pay date <b>{fmtDayDate(preview.expectedPayDate)}</b></div>
             </>
           ) : (
-            <div>Expected pay date <b>{fmtDayDate(preview.expectedPayDate)}</b></div>
+            <div>Pay date <b>{fmtDayDate(preview.expectedPayDate)}</b></div>
           )}
         </div>
       </section>

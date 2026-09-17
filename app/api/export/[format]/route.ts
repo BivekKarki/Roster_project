@@ -55,8 +55,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       "Default rate (AUD)": s.defaultRate ?? "", "Payment frequency": FREQUENCY_LABEL[s.payFrequency],
       "Pay period start": s.payPeriodStart ? fmtDate(s.payPeriodStart) : "",
       "Pay period (days)": s.payPeriodDays,
-      "Pay day": s.payWeekday === null ? "" : WEEKDAYS[s.payWeekday],
-      "Usually late by (days)": s.payLateDays,
+      "Supposed pay day": s.payWeekday === null ? "" : WEEKDAYS[s.payWeekday],
+      "Payroll late by (days)": s.payLateDays,
       "Paid after (days, if no pay cycle)": s.payDelayDays, Notes: s.notes,
     })));
     const buffer = await wb.xlsx.writeBuffer();

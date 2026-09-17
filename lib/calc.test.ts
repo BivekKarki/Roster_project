@@ -74,3 +74,24 @@ test("overdue uses the expected (late) date, and lateness vs official is reporte
   const paid = enrichShift({ ...shift, paid: true, actualPayDate: "2026-09-29" }, "2026-09-30", 3);
   assert.equal(paid.paidDaysAfterOfficial, 7);
 });
+
+test("user's payroll: 14/09–27/09 is supposed to be paid Tue 29/09 but really arrives Tue 06/10", () => {
+  const cycle: PayCycle = { payPeriodStart: "2026-09-14", payPeriodDays: 14, payWeekday: 2, payLateDays: 7, payDelayDays: 14 };
+  for (const date of ["2026-09-14", "2026-09-15", "2026-09-20", "2026-09-21", "2026-09-27"]) {
+    assert.deepEqual(payDatesFor(date, cycle, 14), {
+      periodStart: "2026-09-14", periodEnd: "2026-09-27", officialPayDate: "2026-09-29", expectedPayDate: "2026-10-06",
+    }, date);
+  }
+  assert.deepEqual(payDatesFor("2026-09-28", cycle, 14), {
+    periodStart: "2026-09-28", periodEnd: "2026-10-11", officialPayDate: "2026-10-13", expectedPayDate: "2026-10-20",
+  });
+  // Without a cycle every shift would be paid a different day (the reported problem)
+  assert.notEqual(payDatesFor("2026-09-14", null, 14).expectedPayDate, payDatesFor("2026-09-20", null, 14).expectedPayDate);
+});
+
+test("default pay cycle matches the user's payroll", async () => {
+  const { DEFAULT_PAY_CYCLE } = await import("./calc");
+  const pay = payDatesFor("2026-09-16", { ...DEFAULT_PAY_CYCLE, payDelayDays: 14 }, 14);
+  assert.equal(pay.officialPayDate, "2026-09-29");
+  assert.equal(pay.expectedPayDate, "2026-10-06");
+});

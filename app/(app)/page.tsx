@@ -9,6 +9,7 @@ import { dayName, isoToDb, todayIso } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { fmtDate, fmtHours, fmtTime, money, plural } from "@/lib/format";
 import { intParam, one, type SearchParams } from "@/lib/params";
+import { employersWithoutPayCycle } from "@/lib/payCycleDefaults";
 import { requireUserId } from "@/lib/session";
 import type { PeriodKind } from "@/lib/types";
 
@@ -28,7 +29,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const settings = await getSettings(userId);
   const period = periodRange(kind, offset, settings, today);
 
-  const [inRange, pastOpen, unpaid, noRateCount, todays, siteCount, user] = await Promise.all([
+  const [inRange, pastOpen, unpaid, noRateCount, todays, siteCount, user, noCycle] = await Promise.all([
     findShifts(userId, { date: dateRange(period.start, period.end) }, settings),
     findShifts(userId, { date: { lt: isoToDb(today) }, status: { in: ["SCHEDULED", "CONFIRMED"] } }, settings),
     findShifts(userId, { status: "COMPLETED", paid: false }, settings),
@@ -36,6 +37,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     findShifts(userId, { date: isoToDb(today), status: { not: "CANCELLED" } }, settings),
     prisma.site.count({ where: { userId } }),
     prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
+    employersWithoutPayCycle(userId),
   ]);
 
   const st = summarize(inRange);
@@ -98,6 +100,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             </div>
             <div className="num mt-1 text-sm text-slate-700">Total unpaid: <b>{money(sum(unpaid, (s) => s.pay))}</b>. Tap to open Unpaid.</div>
           </Link>
+        )}
+
+        {noCycle.length > 0 && (
+          <Card className="border-yellow-300 bg-yellow-50">
+            <h2 className="font-bold">Pay dates need your pay cycle</h2>
+            <p className="text-sm text-slate-700">
+              {plural(noCycle.length, "employer")} {noCycle.length === 1 ? "is" : "are"} using shift date + {noCycle[0].payDelayDays} days. Set your pay cycle so every shift in a fortnight shows the same supposed and real pay dates.
+            </p>
+            <Link href="/settings#pay-cycle" className={`${btn.primary} mt-2 w-full`}>Set pay cycle</Link>
+          </Card>
         )}
 
         {noRateCount > 0 && (

@@ -6,7 +6,14 @@ import { addDays, dayName, diffDays, isIsoDate, mondayOf, MONTH_NAMES, weekdayOf
 import { fmtDate, round2 } from "./format";
 import type { EnrichedShift, PayCycle, PayDates, PeriodKind, SettingsDTO, ShiftDTO } from "./types";
 
-export const DEFAULT_FORTNIGHT_START = "2026-09-07";
+export const DEFAULT_FORTNIGHT_START = "2026-09-14";
+
+/**
+ * Default pay cycle: fortnights starting Mon 14/09/2026 (14/09–27/09, 28/09–11/10, …),
+ * supposed to be paid the Tuesday after the fortnight ends (29/09), but payroll usually pays
+ * one week later (06/10).
+ */
+export const DEFAULT_PAY_CYCLE = { payPeriodStart: DEFAULT_FORTNIGHT_START, payPeriodDays: 14, payWeekday: 2, payLateDays: 7 };
 
 export const hasPayCycle = (c: PayCycle | null | undefined): c is PayCycle & { payPeriodStart: string; payWeekday: number } =>
   !!c && isIsoDate(c.payPeriodStart) && c.payWeekday !== null && c.payWeekday >= 0 && c.payWeekday <= 6 && c.payPeriodDays > 0;
@@ -14,9 +21,10 @@ export const hasPayCycle = (c: PayCycle | null | undefined): c is PayCycle & { p
 /**
  * Pay dates for a shift.
  * With a pay cycle: the shift belongs to a fixed-length period counted from payPeriodStart
- * (dates before the anchor work too). The official pay date is the first payWeekday AFTER the
- * period ends, and the expected pay date adds the employer's usual lateness.
- * Without a cycle: expected pay date = shift date + fallback delay.
+ * (dates before the anchor work too). Every shift in the same period gets the same dates:
+ *  - supposed pay date (officialPayDate): the first payWeekday AFTER the period ends
+ *  - real pay date (expectedPayDate): supposed + the days payroll is usually late
+ * Without a cycle: real pay date = shift date + fallback delay, and there is no supposed date.
  */
 export function payDatesFor(shiftDate: string, cycle: PayCycle | null | undefined, fallbackDelayDays: number): PayDates {
   if (!hasPayCycle(cycle)) {

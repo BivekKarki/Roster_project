@@ -1,13 +1,13 @@
 import "server-only";
-import { payDatesFor } from "./calc";
+import { DEFAULT_PAY_CYCLE, payDatesFor } from "./calc";
 import { isoToDb } from "./dates";
 import { prisma } from "./db";
 
 /**
  * The example roster from the brief. Rates are left blank on purpose.
- * Pay cycle: fortnights from Mon 07/09/2026, paid the Tuesday after, usually 7 days late.
+ * Pay cycle: fortnights from Mon 14/09/2026 (14/09–27/09), supposed pay Tue 29/09, real pay Tue 06/10.
  */
-const CYCLE = { payPeriodStart: "2026-09-07", payPeriodDays: 14, payWeekday: 2, payLateDays: 7, payDelayDays: 14 };
+const CYCLE = { ...DEFAULT_PAY_CYCLE, payDelayDays: 14 };
 const SAMPLE_SITES = [
   { employer: "Adairs", location: "Bondi", defaultStart: "07:00", defaultEnd: "09:00" },
   { employer: "Aldi", location: "Edgecliff", defaultStart: "09:00", defaultEnd: "11:00" },

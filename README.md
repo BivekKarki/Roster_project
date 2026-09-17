@@ -93,13 +93,13 @@ Statuses, rates, overtime rules and payment records all carry across.
 ### Calculations (`lib/calc.ts`)
 - **Hours** = end − start − unpaid break. Overnight shifts are handled.
 - **Expected pay** = hours × rate. If the shift has an overtime rule, hours past the threshold are paid at rate × multiplier.
-- **Pay dates** come from each employer's **pay cycle** (Settings → employer → How this employer pays):
-  - *Pay period*: fixed weekly or fortnightly blocks counted from a start date (e.g. Mon 07/09/2026, so 07/09–20/09, 21/09–04/10 …)
-  - *Official pay date*: the first chosen weekday **after** the period ends (e.g. Tuesday → Tue 22/09/2026)
-  - *Expected pay date*: official date + "usually late by" days (e.g. 7 → Tue 29/09/2026). Editable per shift.
-  - Employers without a pay cycle use *shift date + "paid after" days* instead.
+- **Pay dates** come from each employer's **pay cycle**. Set it for everyone at once in Settings → Pay cycle for all employers, or per employer:
+  - *Pay period*: fixed weekly or fortnightly blocks counted from a start date, e.g. Mon 14/09/2026 gives 14/09–27/09, 28/09–11/10, and so on.
+  - *Supposed pay date*: the first chosen weekday **after** the period ends. Every shift from 14/09 to 27/09 gets Tue 29/09/2026.
+  - *Real pay date*: the supposed date plus the days payroll is usually late. With 7 days, that's Tue 06/10/2026. You can edit it per shift.
+  - Employers without a pay cycle fall back to *shift date + "paid after" days*. The dashboard warns about them.
   - Each shift saves its pay period and both dates. Changing a pay rule offers to recalculate **unpaid** shifts only.
-- **Payment status** (always based on the *expected* date):
+- **Payment status** (always based on the *real* pay date):
   - 🔴 overdue after the expected date
   - 🟡 due within the "due soon" window (default 3 days)
   - ⚪ not due yet

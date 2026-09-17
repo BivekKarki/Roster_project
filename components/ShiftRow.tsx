@@ -27,7 +27,7 @@ export function ShiftRow({ s, showDate = false, returnTo }: { s: EnrichedShift; 
       </div>
       {s.status === "COMPLETED" && !s.paid && s.expectedPayDate && (
         <div className="num mt-1 text-xs text-slate-600">
-          {s.officialPayDate ? <>Official pay {fmtDayDate(s.officialPayDate)}, expected {fmtDayDate(s.expectedPayDate)}</> : <>Expected pay {fmtDayDate(s.expectedPayDate)}</>}
+          {s.officialPayDate ? <>Supposed pay {fmtDayDate(s.officialPayDate)}, real pay {fmtDayDate(s.expectedPayDate)}</> : <>Pay date {fmtDayDate(s.expectedPayDate)}</>}
         </div>
       )}
     </Link>
