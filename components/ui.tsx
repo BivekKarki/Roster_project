@@ -35,11 +35,12 @@ export function Card({ children, className = "bg-white border-slate-200" }: { ch
   return <section className={`rounded-2xl border p-4 ${className}`}>{children}</section>;
 }
 
-export function Stat({ label, value, className = "bg-slate-50" }: { label: string; value: ReactNode; className?: string }) {
+export function Stat({ label, value, hint, className = "bg-slate-50" }: { label: string; value: ReactNode; hint?: ReactNode; className?: string }) {
   return (
     <div className={`rounded-xl p-3 ${className}`}>
       <div className="text-xs text-slate-600">{label}</div>
       <div className="num mt-0.5 text-xl font-bold">{value}</div>
+      {hint && <div className="num text-xs text-slate-600">{hint}</div>}
     </div>
   );
 }

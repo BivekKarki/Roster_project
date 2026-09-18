@@ -148,6 +148,7 @@ export type Summary = {
   unpaidCount: number;
   completedCount: number;
   upcoming: number;
+  upcomingHours: number;
   missingRate: number;
 };
 
@@ -164,6 +165,7 @@ export function summarize(list: EnrichedShift[]): Summary {
     unpaidCount: unpaid.length,
     completedCount: completed.length,
     upcoming: sum(active.filter((s) => s.status !== "COMPLETED"), (s) => s.pay),
+    upcomingHours: sum(active.filter((s) => s.status !== "COMPLETED"), (s) => s.hours),
     missingRate: active.filter((s) => s.pay === null).length,
   };
 }

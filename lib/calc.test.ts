@@ -116,3 +116,23 @@ test("dashboard fortnight follows the pay cycle most employers use; ties go to t
 
   assert.equal(pickPayCycle([]), null);
 });
+
+test("period summary separates hours already worked from hours still to come", async () => {
+  const { summarize, enrichShift } = await import("./calc");
+  const base = {
+    id: "x", siteId: null, employer: "Adairs", location: "Bondi", startTime: "07:00", endTime: "09:00", breakMins: 0,
+    rate: 35, otThreshold: null, otMultiplier: null, autoStatus: true, notes: "", payPeriodStart: null, payPeriodEnd: null,
+    officialPayDate: null, expectedPayDate: null, paid: false, actualPayDate: null, actualAmount: null, payNotes: "",
+  };
+  const list = [
+    enrichShift({ ...base, id: "1", date: "2026-09-15", status: "COMPLETED" }, "2026-09-18", 3),
+    enrichShift({ ...base, id: "2", date: "2026-09-19", status: "SCHEDULED" }, "2026-09-18", 3),
+    enrichShift({ ...base, id: "3", date: "2026-09-20", status: "CANCELLED" }, "2026-09-18", 3),
+  ];
+  const s = summarize(list);
+  assert.equal(s.shifts, 2, "cancelled shifts are left out");
+  assert.equal(s.hours, 4);
+  assert.equal(s.upcomingHours, 2, "only the shift not worked yet");
+  assert.equal(s.upcoming, 70);
+  assert.equal(s.expected, 140);
+});
