@@ -77,6 +77,8 @@ export type SiteDTO = {
   payWeekday: number | null;
   payLateDays: number;
   notes: string;
+  /** when this employer was last saved (ms), used to break ties between pay cycles */
+  updatedAtMs: number;
 };
 
 /** The parts of an employer that decide pay dates */
@@ -99,6 +101,7 @@ export type SettingsDTO = {
   overtimeThreshold: number;
   overtimeMultiplier: number;
   autoCompleteShifts: boolean;
+  idleTimeoutMinutes: number;
 };
 
 export type ActionState = { ok?: boolean; error?: string; message?: string } | undefined;

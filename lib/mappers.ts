@@ -44,6 +44,7 @@ export const toSiteDTO = (s: Site): SiteDTO => ({
   payWeekday: s.payWeekday,
   payLateDays: s.payLateDays,
   notes: s.notes,
+  updatedAtMs: s.updatedAt.getTime(),
 });
 
 export const toSettingsDTO = (s: Settings): SettingsDTO => ({
@@ -54,4 +55,5 @@ export const toSettingsDTO = (s: Settings): SettingsDTO => ({
   overtimeThreshold: dec(s.overtimeThreshold) ?? 8,
   overtimeMultiplier: dec(s.overtimeMultiplier) ?? 1.5,
   autoCompleteShifts: s.autoCompleteShifts,
+  idleTimeoutMinutes: s.idleTimeoutMinutes,
 });

@@ -3,7 +3,7 @@ import { logout } from "@/app/actions/auth";
 import { AutoLogoutForm, AvatarUploader, NameForm } from "@/components/ProfileForms";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Card, Page, PageHeader } from "@/components/ui";
-import { prisma } from "@/lib/db";
+import { getAccount } from "@/lib/data";
 import { fmtDate } from "@/lib/format";
 import { DEFAULT_IDLE_MINUTES, sessionMaxDays } from "@/lib/session-rules";
 import { requireUserId } from "@/lib/session";
@@ -12,10 +12,8 @@ export const metadata: Metadata = { title: "Profile" };
 
 export default async function ProfilePage() {
   const userId = await requireUserId();
-  const user = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { name: true, email: true, createdAt: true, emailVerifiedAt: true, avatarUpdatedAt: true, settings: { select: { idleTimeoutMinutes: true } } },
-  });
+  const user = await getAccount(userId);
+  if (!user) return null;
   const version = user.avatarUpdatedAt?.getTime() ?? null;
 
   return (

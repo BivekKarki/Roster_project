@@ -28,7 +28,7 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
 }
 
 export function Page({ children }: { children: ReactNode }) {
-  return <main className="pb-nav mx-auto max-w-md space-y-3 px-3 pt-3">{children}</main>;
+  return <main className="page-in pb-nav mx-auto max-w-md space-y-3 px-3 pt-3">{children}</main>;
 }
 
 export function Card({ children, className = "bg-white border-slate-200" }: { children: ReactNode; className?: string }) {

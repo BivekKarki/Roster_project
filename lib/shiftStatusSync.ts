@@ -1,5 +1,6 @@
 import "server-only";
 import { cache } from "react";
+import { getSettings } from "./data";
 import { dbToIso, isoToDb, todayIso } from "./dates";
 import { prisma } from "./db";
 import { appTimeZone, shiftPhase, shiftWindow } from "./shift-time";
@@ -11,17 +12,20 @@ import { appTimeZone, shiftPhase, shiftWindow } from "./shift-time";
  * (autoStatus = false) and Cancelled shifts are left alone.
  */
 export const syncShiftStatuses = cache(async (userId: string) => {
-  const settings = await prisma.settings.findUnique({ where: { userId }, select: { autoCompleteShifts: true } });
-  if (settings && !settings.autoCompleteShifts) return 0;
+  const settings = await getSettings(userId); // cached: no extra query
+  if (!settings.autoCompleteShifts) return 0;
 
   const timeZone = appTimeZone();
   const now = Date.now();
+  const today = todayIso(timeZone);
+  const nowTime = new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
   const candidates = await prisma.shift.findMany({
     where: {
       userId,
       autoStatus: true,
       status: { in: ["SCHEDULED", "CONFIRMED"] },
-      date: { lte: isoToDb(todayIso(timeZone)) },
+      // Only shifts that could have finished: earlier days, or today with an end time already past.
+      OR: [{ date: { lt: isoToDb(today) } }, { AND: [{ date: isoToDb(today) }, { endTime: { lte: nowTime } }] }],
     },
     select: { id: true, date: true, startTime: true, endTime: true },
   });

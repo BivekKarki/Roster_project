@@ -157,6 +157,12 @@ public/sw.js, offline.html      Offline support
 - **Top right of every page:** your photo, or the first letter of your name (or email) on a coloured circle. Tap it for Profile, Settings and Log out.
 - **Photos:** resized in the browser to a 256×256 JPEG (usually under 40 KB), checked on the server, stored in the database and served privately from `/api/avatar`.
 
+### Speed
+- **Request-cached loaders** (`lib/data.ts`): `getAccount`, `getSettings`, `getSites`, `getUnpaidShifts` and `getOpenPastShifts` run at most once per request, so the layout and the page share one round trip. The dashboard went from 18 queries to 8, and a full tour of the five tabs from 77 to 31.
+- **One query for the shell:** name, photo, settings and the overdue badge come from a single `findUnique` with a filtered relation count.
+- **Region matters most:** every query is a network hop to Neon. `vercel.json` pins the functions to `syd1`; put your Neon project in the same region (Sydney) or the app will feel slow no matter how few queries it makes.
+- **Instant feedback:** tabs are prefetched, the tapped tab dims immediately (`useLinkStatus`), a skeleton appears while data loads, and pages fade up when they arrive.
+
 ### Security
 - **Passwords** are hashed with bcrypt, and sessions are signed JWTs (Auth.js).
 - **Access control:** every query and action filters by the signed-in user's id. Middleware blocks every page for signed-out visitors.

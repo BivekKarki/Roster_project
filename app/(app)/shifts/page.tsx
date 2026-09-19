@@ -3,8 +3,7 @@ import Link from "next/link";
 import { ShiftRow } from "@/components/ShiftRow";
 import { btn, Card, Field, Page, PageHeader } from "@/components/ui";
 import { summarize } from "@/lib/calc";
-import { findShifts, getSettings } from "@/lib/data";
-import { prisma } from "@/lib/db";
+import { findShifts, getSettings, getSites } from "@/lib/data";
 import { fmtHours, money } from "@/lib/format";
 import { filtersToQuery, filtersToWhere, readFilters } from "@/lib/filters";
 import { intParam, type SearchParams } from "@/lib/params";
@@ -22,10 +21,11 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Searc
   const limit = intParam(sp.limit, PAGE, PAGE, 5000);
   const settings = await getSettings(userId);
 
-  const [names, found] = await Promise.all([
-    prisma.shift.findMany({ where: { userId }, select: { employer: true, location: true }, distinct: ["employer", "location"] }),
+  const [sites, found] = await Promise.all([
+    getSites(userId), // cached: also gives the filter dropdown options
     findShifts(userId, filtersToWhere(filters), settings, { orderBy: [{ date: "desc" }, { startTime: "asc" }] }),
   ]);
+  const names = [...sites.map((s) => ({ employer: s.employer, location: s.location })), ...found.map((s) => ({ employer: s.employer, location: s.location }))];
   const shifts = filters.payment === "overdue" ? found.filter((s) => s.payState === "overdue") : found;
   const st = summarize(shifts);
   const employers = [...new Set(names.map((n) => n.employer))].sort();

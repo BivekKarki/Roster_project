@@ -3,9 +3,8 @@ import Link from "next/link";
 import { UnpaidList } from "@/components/UnpaidList";
 import { Card, Page, PageHeader } from "@/components/ui";
 import { sum } from "@/lib/calc";
-import { findShifts, getSettings } from "@/lib/data";
+import { findShifts, getOpenPastShifts, getSettings, getUnpaidShifts } from "@/lib/data";
 import { addDays, isoToDb, todayIso } from "@/lib/dates";
-import { prisma } from "@/lib/db";
 import { money } from "@/lib/format";
 import { one, type SearchParams } from "@/lib/params";
 import { requireUserId } from "@/lib/session";
@@ -21,14 +20,16 @@ export default async function UnpaidPage({ searchParams }: { searchParams: Searc
   const settings = await getSettings(userId);
   const today = todayIso();
 
-  const [unpaidRaw, paid, names, openCount] = await Promise.all([
-    findShifts(userId, { status: "COMPLETED", paid: false, ...(employer ? { employer } : {}) }, settings),
+  const [allUnpaid, paid, openPast] = await Promise.all([
+    getUnpaidShifts(userId), // cached: the layout already loaded this for the nav badge
     showPaid
       ? findShifts(userId, { status: "COMPLETED", paid: true, actualPayDate: { gte: isoToDb(addDays(today, -90)) }, ...(employer ? { employer } : {}) }, settings, { orderBy: [{ actualPayDate: "desc" }] })
       : Promise.resolve([]),
-    prisma.shift.findMany({ where: { userId, status: "COMPLETED" }, select: { employer: true }, distinct: ["employer"], orderBy: { employer: "asc" } }),
-    prisma.shift.count({ where: { userId, status: { in: ["SCHEDULED", "CONFIRMED"] }, date: { lt: isoToDb(today) } } }),
+    getOpenPastShifts(userId), // cached
   ]);
+  const names = [...new Set(allUnpaid.map((s) => s.employer))].sort().map((e) => ({ employer: e }));
+  const openCount = openPast.filter((s) => s.phase === "finished").length;
+  const unpaidRaw = employer ? allUnpaid.filter((s) => s.employer === employer) : allUnpaid;
 
   const unpaid = [...unpaidRaw].sort((a, b) =>
     (a.expectedPayDate ?? "9999").localeCompare(b.expectedPayDate ?? "9999") || a.date.localeCompare(b.date));

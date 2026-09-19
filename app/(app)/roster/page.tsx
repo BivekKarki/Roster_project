@@ -5,11 +5,10 @@ import { ShiftRow } from "@/components/ShiftRow";
 import { btn, Card, Page, PageHeader, SegmentedLinks } from "@/components/ui";
 import { defaultSelectedDay, employerColours, isMonthKey, monthGrid, monthLabel, monthOf } from "@/lib/calendar";
 import { sum } from "@/lib/calc";
-import { dateRange, findShifts, getSettings } from "@/lib/data";
+import { dateRange, findShifts, getSettings, getSites } from "@/lib/data";
 import { addDays, dayName, diffDays, isIsoDate, mondayOf, todayIso } from "@/lib/dates";
 import { fmtDate, fmtHours, money, plural } from "@/lib/format";
 import { intParam, one, type SearchParams } from "@/lib/params";
-import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Roster" };
@@ -35,13 +34,13 @@ async function MonthView({ sp }: { sp: Awaited<SearchParams> }) {
   const grid = monthGrid(month);
   const settings = await getSettings(userId);
 
-  const [shifts, siteNames, shiftNames] = await Promise.all([
+  const [shifts, sites] = await Promise.all([
     findShifts(userId, { date: dateRange(grid.start, grid.end) }, settings),
-    prisma.site.findMany({ where: { userId }, select: { employer: true }, distinct: ["employer"] }),
-    prisma.shift.findMany({ where: { userId }, select: { employer: true }, distinct: ["employer"] }),
+    getSites(userId), // cached, so no extra query
   ]);
-  // Colours are based on all your employers, so they don't change from month to month.
-  const colours = employerColours([...siteNames, ...shiftNames].map((r) => r.employer));
+  // Colours come from your saved employers (plus any that only exist on old shifts),
+  // so they stay the same from month to month.
+  const colours = employerColours([...sites.map((s) => s.employer), ...shifts.map((s) => s.employer)]);
 
   return (
     <>

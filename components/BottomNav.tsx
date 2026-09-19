@@ -1,7 +1,21 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
+
+/** Shows the tab as busy the moment you tap it, before the new page arrives. */
+function TabContent({ icon, label, active }: { icon: string; label: string; active: boolean }) {
+  const { pending } = useLinkStatus();
+  return (
+    <span className={`flex flex-col items-center justify-center transition-transform duration-150 ${pending ? "scale-95 opacity-70" : "active:scale-95"}`}>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.4 : 1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d={icon} />
+      </svg>
+      <span className={`mt-0.5 text-xs ${active ? "font-bold" : ""}`}>{label}</span>
+      <span aria-hidden className={`mt-0.5 h-0.5 w-6 rounded-full bg-current transition-opacity duration-150 ${active || pending ? "opacity-100" : "opacity-0"} ${pending ? "animate-pulse" : ""}`} />
+    </span>
+  );
+}
 
 const TABS = [
   { href: "/", label: "Home", icon: "M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" },
@@ -30,12 +44,9 @@ export function BottomNav({ overdueCount }: { overdueCount: number }) {
           {TABS.map((t) => {
             const active = isActive(t.href);
             return (
-              <Link key={t.href} href={t.href} aria-current={active ? "page" : undefined}
+              <Link key={t.href} href={t.href} prefetch aria-current={active ? "page" : undefined}
                 className={`relative flex flex-col items-center justify-center ${active ? "text-ink" : "text-slate-500"}`}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.4 : 1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d={t.icon} />
-                </svg>
-                <span className={`mt-0.5 text-xs ${active ? "font-bold" : ""}`}>{t.label}</span>
+                <TabContent icon={t.icon} label={t.label} active={active} />
                 {t.href === "/unpaid" && overdueCount > 0 && (
                   <span className="absolute right-[22%] top-1.5 rounded-full bg-red-600 px-1.5 text-xs text-white">{overdueCount}</span>
                 )}

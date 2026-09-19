@@ -4,12 +4,12 @@ import { ShiftRow } from "@/components/ShiftRow";
 import { SubmitButton } from "@/components/SubmitButton";
 import { btn, Card, Page, PageHeader, SegmentedLinks, Stat } from "@/components/ui";
 import { payDatesFor, periodRange, sum, summarize, summarizeByEmployer } from "@/lib/calc";
-import { dateRange, findShifts, getSettings } from "@/lib/data";
+import { findShifts, getAccount, getOpenPastShifts, getSettings, getSites, getUnpaidShifts } from "@/lib/data";
 import { addDays, dayName, diffDays, isoToDb, todayIso } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { fmtDate, fmtDayDate, fmtHours, fmtTime, lateness, money, plural, round2 } from "@/lib/format";
 import { intParam, one, type SearchParams } from "@/lib/params";
-import { employersWithoutPayCycle, suggestedPayCycle } from "@/lib/payCycleDefaults";
+import { suggestedPayCycle } from "@/lib/payCycleDefaults";
 import { requireUserId } from "@/lib/session";
 import type { PeriodKind } from "@/lib/types";
 
@@ -31,17 +31,22 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const fortnightStart = payCycle.fromEmployers ? payCycle.payPeriodStart : settings.fortnightStart;
   const period = periodRange(kind, offset, { fortnightStart }, today);
 
-  const [inRange, pastOpen, unpaid, noRateCount, todays, siteCount, user, noCycle] = await Promise.all([
-    findShifts(userId, { date: dateRange(period.start, period.end) }, settings),
-    findShifts(userId, { date: { lte: isoToDb(today) }, status: { in: ["SCHEDULED", "CONFIRMED"] } }, settings),
-    findShifts(userId, { status: "COMPLETED", paid: false }, settings),
+  // One query covers the selected period plus yesterday and today (for the Working now card);
+  // everything else comes from request-cached loaders shared with the layout.
+  const windowStart = period.start < addDays(today, -1) ? period.start : addDays(today, -1);
+  const windowEnd = period.end > today ? period.end : today;
+  const [windowShifts, pastOpen, unpaid, sites, noRateCount, user] = await Promise.all([
+    findShifts(userId, { date: { gte: isoToDb(windowStart), lte: isoToDb(windowEnd) } }, settings),
+    getOpenPastShifts(userId),
+    getUnpaidShifts(userId),
+    getSites(userId),
     prisma.shift.count({ where: { userId, rate: null, status: { not: "CANCELLED" } } }),
-    // today's shifts plus last night's (an overnight shift can still be on this morning)
-    findShifts(userId, { date: dateRange(addDays(today, -1), today), status: { not: "CANCELLED" } }, settings),
-    prisma.site.count({ where: { userId } }),
-    prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
-    employersWithoutPayCycle(userId),
+    getAccount(userId),
   ]);
+  const inRange = windowShifts.filter((s) => s.date >= period.start && s.date <= period.end);
+  const todays = windowShifts.filter((s) => s.date >= addDays(today, -1) && s.date <= today && s.status !== "CANCELLED");
+  const siteCount = sites.length;
+  const noCycle = sites.filter((s) => s.payPeriodStart === null || s.payWeekday === null);
 
   const st = summarize(inRange);
   // Pay dates for the period on screen, but only when it sits inside a single pay period.
