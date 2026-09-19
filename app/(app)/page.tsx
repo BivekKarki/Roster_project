@@ -7,7 +7,7 @@ import { payDatesFor, periodRange, sum, summarize, summarizeByEmployer } from "@
 import { dateRange, findShifts, getSettings } from "@/lib/data";
 import { addDays, dayName, diffDays, isoToDb, todayIso } from "@/lib/dates";
 import { prisma } from "@/lib/db";
-import { fmtDate, fmtDayDate, fmtHours, lateness, fmtTime, money, plural, round2 } from "@/lib/format";
+import { fmtDate, fmtDayDate, fmtHours, fmtTime, lateness, money, plural, round2 } from "@/lib/format";
 import { intParam, one, type SearchParams } from "@/lib/params";
 import { employersWithoutPayCycle, suggestedPayCycle } from "@/lib/payCycleDefaults";
 import { requireUserId } from "@/lib/session";
@@ -44,12 +44,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   ]);
 
   const st = summarize(inRange);
-    // Pay dates for the period on screen, but only when it sits inside a single pay period.
+  // Pay dates for the period on screen, but only when it sits inside a single pay period.
   const cycle = payCycle.fromEmployers ? { ...payCycle, payDelayDays: settings.payDelayDays } : null;
   const payFrom = cycle && payDatesFor(period.start, cycle, settings.payDelayDays);
   const payTo = cycle && payDatesFor(period.end, cycle, settings.payDelayDays);
   const payDates = payFrom && payTo && payFrom.periodStart === payTo.periodStart ? payFrom : null;
-
   const endedNotCompleted = pastOpen.filter((s) => s.phase === "finished"); // ended by the clock, not just by date
   const workingNow = todays.filter((s) => s.phase === "in-progress");
   const todaysOnly = todays.filter((s) => s.date === today);
@@ -156,7 +155,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             </div>
             <Link href={href(kind, offset + 1)} replace scroll={false} className="rounded-xl bg-slate-100 px-4 py-3 text-lg" aria-label="Next period">›</Link>
           </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2">
             <Stat label="Total shifts" value={st.shifts} />
             <Stat label="Total hours" value={fmtHours(st.hours)} hint={`${fmtHours(round2(st.hours - st.upcomingHours))} worked`} />
             <Stat label="Expected pay" value={money(st.expected)} className="bg-blue-50" />

@@ -148,6 +148,7 @@ export type Summary = {
   unpaidCount: number;
   completedCount: number;
   upcoming: number;
+  /** hours of shifts in this period that haven't been worked yet */
   upcomingHours: number;
   missingRate: number;
 };

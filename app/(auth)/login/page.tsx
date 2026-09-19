@@ -3,9 +3,10 @@ import { LoginForm } from "@/components/AuthForms";
 import { Alert } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Log in" };
+export const dynamic = "force-dynamic";
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ reason?: string; verified?: string }> }) {
-  const { reason, verified } = await searchParams;
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ reason?: string; verified?: string; error?: string; email?: string }> }) {
+  const { reason, verified, error, email } = await searchParams;
   return (
     <>
       {reason === "idle" && (
@@ -18,7 +19,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <Alert tone="ok">Your email is confirmed. Log in to continue.</Alert>
         </div>
       )}
-      <LoginForm />
+      <LoginForm error={error} email={email} />
     </>
   );
 }
