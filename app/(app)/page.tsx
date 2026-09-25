@@ -162,8 +162,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           <div className="mt-3 grid grid-cols-2 gap-2">
             <Stat label="Total shifts" value={st.shifts} />
             <Stat label="Total hours" value={fmtHours(st.hours)} hint={`${fmtHours(round2(st.hours - st.upcomingHours))} worked`} />
+            <Stat label="Expected pay" value="Test Expected" className="bg-blue-50" />
             {/* <Stat label="Expected pay" value={money(st.expected)} className="bg-blue-50" /> */}
-            <Stat label="Expected pay" value="Expected" className="bg-blue-50" />
             {payDates ? (
               <Stat label="Expected pay date" value={fmtDayDate(payDates.officialPayDate)} className="bg-blue-50" />
             ) : (

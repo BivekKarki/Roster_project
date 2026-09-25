@@ -148,6 +148,10 @@ public/sw.js, offline.html      Offline support
 - **Locally:** without a key, `npm run dev` prints the email, code and link in the terminal.
 - **Accounts created before this update** are asked to confirm their email the next time they log in.
 
+### Unpaid tab
+- Shows **one pay period at a time**, defaulting to the current one, with ‹ › to move between periods and an "Everything unpaid" toggle.
+- The headline total is the money expected from that pay period only; a line underneath says how much is outstanding altogether.
+
 ### Sessions and auto logout
 - **Auto logout:** each user picks 15 min, 30 min (default), 1 h, 4 h, 1 day or Never in **Profile**. After that long with no activity, a 60-second warning appears and then the app logs out. It checks immediately when the phone wakes up, and all open tabs share the same timer.
 - **Enforced on the server too:** the session cookie stores the login time and last activity, and every request checks them (`auth.config.ts`, `lib/session-rules.ts`). A stale cookie from a closed tab or a sleeping phone doesn't work.
