@@ -6,9 +6,8 @@ import { GeneralSettingsForm, ImportForm } from "@/components/SettingsForms";
 import { SubmitButton } from "@/components/SubmitButton";
 import { btn, Card, Page, PageHeader } from "@/components/ui";
 import { auth } from "@/auth";
-import { getSettings, getSites } from "@/lib/data";
+import { getSettings, getSites, getUnpaidCount } from "@/lib/data";
 import { todayIso } from "@/lib/dates";
-import { prisma } from "@/lib/db";
 import { employersWithoutPayCycle, suggestedPayCycle } from "@/lib/payCycleDefaults";
 import { fmtDate, fmtTime, money } from "@/lib/format";
 import { requireUserId } from "@/lib/session";
@@ -20,7 +19,7 @@ export default async function SettingsPage() {
   const userId = await requireUserId();
   const [sites, settings, session, cycle, noCycle, unpaidCount] = await Promise.all([
     getSites(userId), getSettings(userId), auth(), suggestedPayCycle(userId), employersWithoutPayCycle(userId),
-    prisma.shift.count({ where: { userId, paid: false, status: { not: "CANCELLED" } } }),
+    getUnpaidCount(userId),
   ]);
 
   return (
@@ -93,6 +92,7 @@ export default async function SettingsPage() {
             <a href="/api/export/xlsx" className={`${btn.ghost} px-2 text-sm`}>Excel</a>
             <a href="/api/export/json" className={`${btn.ghost} px-2 text-sm`}>Backup</a>
           </div>
+          <a href="/api/export/timesheet" className={`${btn.ghost} mt-2 w-full text-sm`}>Timesheet (hours only)</a>
           <ImportForm />
         </Card>
 

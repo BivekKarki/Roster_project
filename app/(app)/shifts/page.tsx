@@ -88,6 +88,10 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Searc
             <a href={`/api/export/csv${query ? `?${query}` : ""}`} className={btn.ghost}>Export CSV</a>
             <a href={`/api/export/xlsx${query ? `?${query}` : ""}`} className={btn.ghost}>Export Excel</a>
           </div>
+          <a href={`/api/export/timesheet${query ? `?${query}` : ""}`} className={`${btn.primary} mt-2 w-full`}>
+            Export timesheet (hours only)
+          </a>
+          <p className="mt-1 text-xs text-slate-500">Date, day, employer, location, start, end and hours, with a total row and hours per place.</p>
         </Card>
 
         {shifts.length === 0 && <p className="py-6 text-center text-slate-500">No shifts match. Clear the filters or add a shift.</p>}

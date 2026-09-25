@@ -124,10 +124,12 @@ test("period summary separates hours already worked from hours still to come", a
     rate: 35, otThreshold: null, otMultiplier: null, autoStatus: true, notes: "", payPeriodStart: null, payPeriodEnd: null,
     officialPayDate: null, expectedPayDate: null, paid: false, actualPayDate: null, actualAmount: null, payNotes: "",
   };
+  // A fixed "now" so the clock-based status (Scheduled until the shift ends) is deterministic.
+  const now = Date.parse("2026-09-18T12:00:00+10:00");
   const list = [
-    enrichShift({ ...base, id: "1", date: "2026-09-15", status: "COMPLETED" }, "2026-09-18", 3),
-    enrichShift({ ...base, id: "2", date: "2026-09-19", status: "SCHEDULED" }, "2026-09-18", 3),
-    enrichShift({ ...base, id: "3", date: "2026-09-20", status: "CANCELLED" }, "2026-09-18", 3),
+    enrichShift({ ...base, id: "1", date: "2026-09-15", status: "COMPLETED" }, "2026-09-18", 3, now),
+    enrichShift({ ...base, id: "2", date: "2026-09-19", status: "SCHEDULED" }, "2026-09-18", 3, now),
+    enrichShift({ ...base, id: "3", date: "2026-09-20", status: "CANCELLED" }, "2026-09-18", 3, now),
   ];
   const s = summarize(list);
   assert.equal(s.shifts, 2, "cancelled shifts are left out");
@@ -135,4 +137,24 @@ test("period summary separates hours already worked from hours still to come", a
   assert.equal(s.upcomingHours, 2, "only the shift not worked yet");
   assert.equal(s.upcoming, 70);
   assert.equal(s.expected, 140);
+});
+
+test("a shift whose end time has passed counts as Completed even if the database row is stale", async () => {
+  const { enrichShift } = await import("./calc");
+  const row = {
+    id: "1", siteId: null, employer: "Aldi", location: "Edgecliff", date: "2026-09-17", startTime: "09:00", endTime: "11:00",
+    breakMins: 0, rate: 30, otThreshold: null, otMultiplier: null, status: "SCHEDULED" as const, autoStatus: true, notes: "",
+    payPeriodStart: null, payPeriodEnd: null, officialPayDate: null, expectedPayDate: "2026-09-29",
+    paid: false, actualPayDate: null, actualAmount: null, payNotes: "",
+  };
+  const during = enrichShift(row, "2026-09-17", 3, Date.parse("2026-09-17T10:00:00+10:00"));
+  assert.equal(during.status, "SCHEDULED");
+  assert.equal(during.phase, "in-progress");
+  const after = enrichShift(row, "2026-09-17", 3, Date.parse("2026-09-17T11:30:00+10:00"));
+  assert.equal(after.status, "COMPLETED", "shown as completed straight away");
+  assert.equal(after.storedStatus, "SCHEDULED", "the database row is still the old value");
+  const manual = enrichShift({ ...row, autoStatus: false }, "2026-09-17", 3, Date.parse("2026-09-17T11:30:00+10:00"));
+  assert.equal(manual.status, "SCHEDULED", "a status you set yourself is left alone");
+  const off = enrichShift(row, "2026-09-17", 3, Date.parse("2026-09-17T11:30:00+10:00"), undefined, false);
+  assert.equal(off.status, "SCHEDULED", "setting turned off");
 });

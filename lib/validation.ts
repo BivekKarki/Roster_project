@@ -66,6 +66,7 @@ export const siteSchema = z.object({
     .refine((v) => v === "" || /^[0-6]$/.test(v), "Choose a pay day")
     .transform((v) => (v === "" ? null : Number(v))),
   payLateDays: z.coerce.number().int().min(0).max(60),
+  separateTotals: checkbox,
   notes: text(500).optional().default(""),
   renameExisting: checkbox,
   fillBlankRates: checkbox,

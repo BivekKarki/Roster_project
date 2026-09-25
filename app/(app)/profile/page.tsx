@@ -14,7 +14,7 @@ export default async function ProfilePage() {
   const userId = await requireUserId();
   const user = await getAccount(userId);
   if (!user) return null;
-  const version = user.avatarUpdatedAt?.getTime() ?? null;
+  const version = user.avatarVersion;
 
   return (
     <>
@@ -27,8 +27,8 @@ export default async function ProfilePage() {
         <Card>
           <NameForm name={user.name} />
           <p className="mt-3 text-xs text-slate-500">
-            Email {user.email}{user.emailVerifiedAt ? ` (confirmed ${fmtDate(user.emailVerifiedAt.toISOString().slice(0, 10))})` : ""}.
-            {" "}Member since {fmtDate(user.createdAt.toISOString().slice(0, 10))}.
+            Email {user.email}{user.emailVerifiedAt ? ` (confirmed ${fmtDate(user.emailVerifiedAt.slice(0, 10))})` : ""}.
+            {" "}Member since {fmtDate(user.createdAt.slice(0, 10))}.
           </p>
         </Card>
         <Card>

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { signIn, signOut } from "@/auth";
 import { DEFAULT_FORTNIGHT_START } from "@/lib/calc";
 import { isoToDb } from "@/lib/dates";
+import { bumpUser } from "@/lib/cache";
 import { prisma } from "@/lib/db";
 import { EmailNotConfiguredError } from "@/lib/email";
 import { createSampleData } from "@/lib/sample";
@@ -92,7 +93,7 @@ export async function signup(_prev: ActionState, formData: FormData): Promise<Ac
     },
     select: { id: true, email: true, name: true },
   });
-  if (sample) await createSampleData(user.id);
+  if (sample) { await createSampleData(user.id); bumpUser(user.id); }
 
   if (mustVerify) {
     const result = await trySendCode(user);

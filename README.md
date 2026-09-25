@@ -157,7 +157,16 @@ public/sw.js, offline.html      Offline support
 - **Top right of every page:** your photo, or the first letter of your name (or email) on a coloured circle. Tap it for Profile, Settings and Log out.
 - **Photos:** resized in the browser to a 256×256 JPEG (usually under 40 KB), checked on the server, stored in the database and served privately from `/api/avatar`.
 
+### Exports
+- **Timesheet (hours only):** three sheets, respecting the filters on the Shifts tab.
+  - *Timesheet*: Date, Day, Employer, Location, Start, End, Total hours, ending in a live `SUM` total row.
+  - *Hours summary*: any employer/location you ticked as "Keep this place separate in timesheet totals" (for a different pay rate) gets its own line; everything else is added together as "All other work".
+  - *Hours by place*: the full breakdown, every employer and location on its own line.
+- **Full Excel, CSV and JSON backup** as before.
+
 ### Speed
+- **Cross-request cache** (`lib/cache.ts`): each user's data is cached and tagged, and every write calls `bumpUser`, which clears it. A refresh with nothing changed usually runs **no database queries at all**.
+- **Statuses are worked out from the clock while rendering**, so cached rows still show "Working now" and "Completed" correctly; the database catch-up happens on the next write (`requireUserIdForWrite`), where cache invalidation is allowed.
 - **Request-cached loaders** (`lib/data.ts`): `getAccount`, `getSettings`, `getSites`, `getUnpaidShifts` and `getOpenPastShifts` run at most once per request, so the layout and the page share one round trip. The dashboard went from 18 queries to 8, and a full tour of the five tabs from 77 to 31.
 - **One query for the shell:** name, photo, settings and the overdue badge come from a single `findUnique` with a filtered relation count.
 - **Region matters most:** every query is a network hop to Neon. `vercel.json` pins the functions to `syd1`; put your Neon project in the same region (Sydney) or the app will feel slow no matter how few queries it makes.

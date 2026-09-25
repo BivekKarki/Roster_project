@@ -13,11 +13,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await getAccount(userId);
   if (!user) return null;
   const settings = await getSettings(userId); // from the same cached query
-  const overdueCount = user._count.shifts;
+  const overdueCount = user.overdueCount;
 
   return (
     <UserProvider user={{
-      name: user.name, email: user.email, avatarVersion: user.avatarUpdatedAt?.getTime() ?? null,
+      name: user.name, email: user.email, avatarVersion: user.avatarVersion,
       timeZone: appTimeZone(), autoCompleteShifts: settings.autoCompleteShifts,
     }}>
       {children}

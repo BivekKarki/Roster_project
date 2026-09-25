@@ -104,6 +104,8 @@ model Site {
   payWeekday     Int?
   /// The employer usually pays this many days after the official pay date
   payLateDays    Int        @default(0)
+  /// Count this employer + location on its own line in the timesheet total (different pay rate)
+  separateTotals Boolean    @default(false)
   notes        String       @default("")
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt

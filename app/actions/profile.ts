@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { bumpUser } from "@/lib/cache";
 import { signOut, unstable_update } from "@/auth";
 import { DEFAULT_FORTNIGHT_START } from "@/lib/calc";
 import { isoToDb } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { IDLE_OPTIONS } from "@/lib/session-rules";
-import { requireUserId } from "@/lib/session";
+import { requireUserIdForWrite } from "@/lib/session";
 import type { ActionState } from "@/lib/types";
 import { autoLogoutSchema, firstError, formToObject, profileSchema } from "@/lib/validation";
 
@@ -18,17 +19,18 @@ const IMAGE_SIGNATURES: { type: string; test: (b: Uint8Array) => boolean }[] = [
 ];
 
 export async function updateProfile(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForWrite();
   const parsed = profileSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { error: firstError(parsed.error) };
   await prisma.user.update({ where: { id: userId }, data: { name: parsed.data.name || null } });
   await unstable_update({ user: { name: parsed.data.name || null } });
+  bumpUser(userId);
   revalidatePath("/", "layout");
   return { ok: true, message: "Name saved" };
 }
 
 export async function updateAutoLogout(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForWrite();
   const parsed = autoLogoutSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { error: firstError(parsed.error) };
   const minutes = parsed.data.idleTimeoutMinutes;
@@ -39,13 +41,14 @@ export async function updateAutoLogout(_prev: ActionState, formData: FormData): 
   });
   // Put the new timeout into the session cookie straight away.
   await unstable_update({ idleMinutes: minutes });
+  bumpUser(userId);
   revalidatePath("/", "layout");
   const label = IDLE_OPTIONS.find((o) => o.value === minutes)?.label ?? `${minutes} minutes`;
   return { ok: true, message: minutes === 0 ? "Automatic logout turned off" : `You'll be logged out after ${label} without activity` };
 }
 
 export async function uploadAvatar(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForWrite();
   const file = formData.get("avatar");
   if (!(file instanceof File) || file.size === 0) return { error: "Choose a photo." };
   if (file.size > MAX_AVATAR_BYTES) return { error: "That photo is too large. Try a smaller one." };
@@ -56,13 +59,15 @@ export async function uploadAvatar(_prev: ActionState, formData: FormData): Prom
     where: { id: userId },
     data: { avatar: bytes, avatarType: kind.type, avatarUpdatedAt: new Date() },
   });
+  bumpUser(userId);
   revalidatePath("/", "layout");
   return { ok: true, message: "Photo updated" };
 }
 
 export async function removeAvatar() {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForWrite();
   await prisma.user.update({ where: { id: userId }, data: { avatar: null, avatarType: null, avatarUpdatedAt: null } });
+  bumpUser(userId);
   revalidatePath("/", "layout");
 }
 

@@ -55,6 +55,8 @@ export type EnrichedShift = ShiftDTO & {
   payState: PayState | null;
   daysOverdue: number;
   daysUntilDue: number | null;
+  /** The status stored in the database, before the clock is taken into account */
+  storedStatus: Status;
   /** Where the shift is right now: before, during or after its hours */
   phase: import("./shift-time").ShiftPhase;
   /** expected pay date minus official pay date */
@@ -76,6 +78,7 @@ export type SiteDTO = {
   payPeriodDays: number;
   payWeekday: number | null;
   payLateDays: number;
+  separateTotals: boolean;
   notes: string;
   /** when this employer was last saved (ms), used to break ties between pay cycles */
   updatedAtMs: number;

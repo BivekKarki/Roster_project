@@ -5,7 +5,7 @@ import { ShiftRow } from "@/components/ShiftRow";
 import { btn, Card, Page, PageHeader, SegmentedLinks } from "@/components/ui";
 import { defaultSelectedDay, employerColours, isMonthKey, monthGrid, monthLabel, monthOf } from "@/lib/calendar";
 import { sum } from "@/lib/calc";
-import { dateRange, findShifts, getSettings, getSites } from "@/lib/data";
+import { getSettings, getShiftsBetween, getSites } from "@/lib/data";
 import { addDays, dayName, diffDays, isIsoDate, mondayOf, todayIso } from "@/lib/dates";
 import { fmtDate, fmtHours, money, plural } from "@/lib/format";
 import { intParam, one, type SearchParams } from "@/lib/params";
@@ -35,8 +35,8 @@ async function MonthView({ sp }: { sp: Awaited<SearchParams> }) {
   const settings = await getSettings(userId);
 
   const [shifts, sites] = await Promise.all([
-    findShifts(userId, { date: dateRange(grid.start, grid.end) }, settings),
-    getSites(userId), // cached, so no extra query
+    getShiftsBetween(userId, grid.start, grid.end), // cached until you change something
+    getSites(userId),
   ]);
   // Colours come from your saved employers (plus any that only exist on old shifts),
   // so they stay the same from month to month.
@@ -72,7 +72,7 @@ async function WeekView({ sp }: { sp: Awaited<SearchParams> }) {
   const end = addDays(start, 6);
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
   const settings = await getSettings(userId);
-  const shifts = await findShifts(userId, { date: dateRange(start, end) }, settings);
+  const shifts = await getShiftsBetween(userId, start, end);
   const active = shifts.filter((s) => s.status !== "CANCELLED");
   const here = `/roster?view=week&week=${offset}`;
 

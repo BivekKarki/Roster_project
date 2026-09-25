@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { bumpUser } from "@/lib/cache";
 import { redirect } from "next/navigation";
 import { calcHours, enrichShift, hasPayCycle, payDatesFor, splitPayment } from "@/lib/calc";
 import { getSettings } from "@/lib/data";
@@ -9,7 +10,7 @@ import { prisma } from "@/lib/db";
 import { plural } from "@/lib/format";
 import { toShiftDTO, toSiteDTO } from "@/lib/mappers";
 import { appTimeZone, automaticStatus, shiftPhase, shiftWindow } from "@/lib/shift-time";
-import { requireUserId } from "@/lib/session";
+import { requireUserIdForWrite } from "@/lib/session";
 import type { ActionState } from "@/lib/types";
 import { firstError, formToObject, payBatchSchema, shiftSchema } from "@/lib/validation";
 
@@ -21,7 +22,7 @@ const safeReturn = (value: FormDataEntryValue | null, fallback = "/roster") => {
 const dbDate = (iso: string | null) => (iso ? isoToDb(iso) : null);
 
 export async function saveShift(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForWrite();
   const parsed = shiftSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { error: firstError(parsed.error) };
   const d = parsed.data;
@@ -113,31 +114,34 @@ export async function saveShift(_prev: ActionState, formData: FormData): Promise
     await prisma.shift.createMany({ data: rows });
   }
 
+  bumpUser(userId);
   revalidatePath("/", "layout");
   redirect(safeReturn(formData.get("returnTo")));
 }
 
 export async function deleteShift(formData: FormData) {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForWrite();
   const id = String(formData.get("id") ?? "");
   await prisma.shift.deleteMany({ where: { id, userId } });
+  bumpUser(userId);
   revalidatePath("/", "layout");
   redirect(safeReturn(formData.get("returnTo")));
 }
 
 export async function markCompleted(formData: FormData) {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForWrite();
   const ids = formData.getAll("ids").map(String).filter(Boolean);
   if (ids.length === 0) return;
   await prisma.shift.updateMany({
     where: { id: { in: ids }, userId, status: { in: ["SCHEDULED", "CONFIRMED"] } },
     data: { status: "COMPLETED" },
   });
+  bumpUser(userId);
   revalidatePath("/", "layout");
 }
 
 export async function markPaid(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForWrite();
   const obj = { ...formToObject(formData), ids: formData.getAll("ids").map(String) };
   const parsed = payBatchSchema.safeParse(obj);
   if (!parsed.success) return { error: firstError(parsed.error) };
@@ -172,16 +176,18 @@ export async function markPaid(_prev: ActionState, formData: FormData): Promise<
     ),
   );
 
+  bumpUser(userId);
   revalidatePath("/", "layout");
   return { ok: true, message: `${plural(rows.length, "shift")} marked paid` };
 }
 
 export async function markUnpaid(formData: FormData) {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForWrite();
   const id = String(formData.get("id") ?? "");
   await prisma.shift.updateMany({
     where: { id, userId },
     data: { paid: false, actualPayDate: null, actualAmount: null },
   });
+  bumpUser(userId);
   revalidatePath("/", "layout");
 }

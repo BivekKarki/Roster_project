@@ -4,9 +4,8 @@ import { ShiftRow } from "@/components/ShiftRow";
 import { SubmitButton } from "@/components/SubmitButton";
 import { btn, Card, Page, PageHeader, SegmentedLinks, Stat } from "@/components/ui";
 import { payDatesFor, periodRange, sum, summarize, summarizeByEmployer } from "@/lib/calc";
-import { findShifts, getAccount, getOpenPastShifts, getSettings, getSites, getUnpaidShifts } from "@/lib/data";
+import { getAccount, getNoRateCount, getOpenPastShifts, getSettings, getShiftsBetween, getSites, getUnpaidShifts } from "@/lib/data";
 import { addDays, dayName, diffDays, isoToDb, todayIso } from "@/lib/dates";
-import { prisma } from "@/lib/db";
 import { fmtDate, fmtDayDate, fmtHours, fmtTime, lateness, money, plural, round2 } from "@/lib/format";
 import { intParam, one, type SearchParams } from "@/lib/params";
 import { suggestedPayCycle } from "@/lib/payCycleDefaults";
@@ -36,11 +35,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const windowStart = period.start < addDays(today, -1) ? period.start : addDays(today, -1);
   const windowEnd = period.end > today ? period.end : today;
   const [windowShifts, pastOpen, unpaid, sites, noRateCount, user] = await Promise.all([
-    findShifts(userId, { date: { gte: isoToDb(windowStart), lte: isoToDb(windowEnd) } }, settings),
+    getShiftsBetween(userId, windowStart, windowEnd),
     getOpenPastShifts(userId),
     getUnpaidShifts(userId),
     getSites(userId),
-    prisma.shift.count({ where: { userId, rate: null, status: { not: "CANCELLED" } } }),
+    getNoRateCount(userId),
     getAccount(userId),
   ]);
   const inRange = windowShifts.filter((s) => s.date >= period.start && s.date <= period.end);
@@ -163,7 +162,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           <div className="mt-3 grid grid-cols-2 gap-2">
             <Stat label="Total shifts" value={st.shifts} />
             <Stat label="Total hours" value={fmtHours(st.hours)} hint={`${fmtHours(round2(st.hours - st.upcomingHours))} worked`} />
-            <Stat label="Expected pay" value={money(st.expected)} className="bg-blue-50" />
+            {/* <Stat label="Expected pay" value={money(st.expected)} className="bg-blue-50" /> */}
+            <Stat label="Expected pay" value="Expected" className="bg-blue-50" />
             {payDates ? (
               <Stat label="Expected pay date" value={fmtDayDate(payDates.officialPayDate)} className="bg-blue-50" />
             ) : (

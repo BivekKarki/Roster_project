@@ -1,17 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { bumpUser } from "@/lib/cache";
 import { redirect } from "next/navigation";
 import { payDatesFor } from "@/lib/calc";
 import { isoToDb } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { toSiteDTO } from "@/lib/mappers";
-import { requireUserId } from "@/lib/session";
+import { requireUserIdForWrite } from "@/lib/session";
 import type { ActionState } from "@/lib/types";
 import { firstError, formToObject, siteSchema } from "@/lib/validation";
 
 export async function saveSite(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForWrite();
   const parsed = siteSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { error: firstError(parsed.error) };
   const { id, renameExisting, fillBlankRates, recalcUnpaid, payPeriodStart, ...rest } = parsed.data;
@@ -73,15 +74,17 @@ export async function saveSite(_prev: ActionState, formData: FormData): Promise<
     throw error;
   }
 
+  bumpUser(userId);
   revalidatePath("/", "layout");
   redirect("/settings");
 }
 
 export async function deleteSite(formData: FormData) {
-  const userId = await requireUserId();
+  const userId = await requireUserIdForWrite();
   const id = String(formData.get("id") ?? "");
   // Shifts keep their own employer/location copy; their siteId is set to NULL by the database.
   await prisma.site.deleteMany({ where: { id, userId } });
+  bumpUser(userId);
   revalidatePath("/", "layout");
   redirect("/settings");
 }

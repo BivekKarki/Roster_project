@@ -43,6 +43,7 @@ export const toSiteDTO = (s: Site): SiteDTO => ({
   payPeriodDays: s.payPeriodDays,
   payWeekday: s.payWeekday,
   payLateDays: s.payLateDays,
+  separateTotals: s.separateTotals,
   notes: s.notes,
   updatedAtMs: s.updatedAt.getTime(),
 });

@@ -39,6 +39,7 @@ export function SiteForm({ site, employers, defaultDelay, defaultCycle, today, s
     payPeriodDays: site?.payPeriodStart ? site.payPeriodDays : defaultCycle.payPeriodDays,
     payWeekday: site?.payWeekday ?? defaultCycle.payWeekday,
     payLateDays: String(site?.payPeriodStart ? site.payLateDays : defaultCycle.payLateDays),
+    separateTotals: site?.separateTotals ?? false,
     notes: site?.notes ?? "",
   });
   const [rename, setRename] = useState(true);
@@ -100,6 +101,13 @@ export function SiteForm({ site, employers, defaultDelay, defaultCycle, today, s
         <Field label="Default rate ($/h)" htmlFor="defaultRate">
           <input id="defaultRate" name="defaultRate" type="number" inputMode="decimal" step="0.01" min="0" placeholder="Not set" value={f.defaultRate} onChange={(e) => set({ defaultRate: e.target.value })} className="input" />
         </Field>
+        <label className="mb-3 flex items-start gap-3 text-sm">
+          <input type="checkbox" name="separateTotals" checked={f.separateTotals} onChange={(e) => set({ separateTotals: e.target.checked })} className="mt-0.5 h-6 w-6 accent-ink" />
+          <span>
+            Keep this place separate in timesheet totals
+            <span className="block text-xs text-slate-500">Use it when this location pays a different rate. Its hours get their own line; everything else is added together.</span>
+          </span>
+        </label>
         <Field label="Notes" htmlFor="notes">
           <input id="notes" name="notes" placeholder="Optional, e.g. manager name" value={f.notes} onChange={(e) => set({ notes: e.target.value })} className="input" />
         </Field>
